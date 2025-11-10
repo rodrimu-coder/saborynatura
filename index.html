@@ -40,7 +40,6 @@
     .footer{position:sticky;bottom:0;backdrop-filter:blur(8px);background:rgba(11,15,20,.7);padding:10px;margin:0 -16px}
     .footer .bar{display:flex;gap:8px;flex-wrap:wrap}
     .help{font-size:12px;color:#9aa9bf}
-    .badge{font-size:11px;padding:4px 8px;border-radius:999px;background:#1f2937}
   </style>
 </head>
 <body>
@@ -60,13 +59,15 @@
         <button class="btn warn" id="rollWeek">Nueva semana</button>
         <button class="btn danger" id="wipeAll">Borrar todo</button>
       </div>
-      <div class="help" style="margin-top:8px">Los datos se guardan en tu teléfono (localStorage). Para verlos en otro dispositivo, usa <b>Exportar JSON</b> en uno y <b>Importar JSON</b> en el otro.</div>
+      <div class="help" style="margin-top:8px">
+        Los datos se guardan <b>solo</b> en el dispositivo (localStorage). Para verlos en otro equipo, usa <b>Exportar JSON</b> en uno e <b>Importar JSON</b> en el otro.
+      </div>
     </div>
   </div>
 
 <script>
 (function(){
-  // ---------- Utilidades ----------
+  // ================== Utilidades ==================
   const $ = (sel, p=document)=>p.querySelector(sel);
   const $$ = (sel, p=document)=>Array.from(p.querySelectorAll(sel));
   const fmt = n => new Intl.NumberFormat('es-CL',{minimumFractionDigits:0}).format(Number(n||0));
@@ -74,25 +75,22 @@
   const startOfWeek = (d=new Date())=>{ const x=new Date(d); const day=(x.getDay()+6)%7; x.setHours(0,0,0,0); x.setDate(x.getDate()-day); return x; }; // Lunes
   const isoDate = d=> new Date(d).toISOString().slice(0,10);
   const DAYS_14 = 14*24*60*60*1000;
-
   const PRODUCTS = ["mantecoso","chanco","huevos","mantequilla"];
-  const DEFAULT_COSTS = {mantecoso:0,chanco:0,huevos:0,mantequilla:0};
 
-  // ---------- Persistencia ----------
-  const DBKEY = 'qy-app-v2';
-  const load = ()=>{
-    try{ return JSON.parse(localStorage.getItem(DBKEY))||{} }catch{ return {} }
-  }
-  const save = (db)=> localStorage.setItem(DBKEY, JSON.stringify(db));
+  // ================== Persistencia ==================
+  const DBKEY = 'qy-app-v3';
+
+  function load(){ try{ return JSON.parse(localStorage.getItem(DBKEY))||{} }catch{ return {} } }
+  function save(db){ localStorage.setItem(DBKEY, JSON.stringify(db)); }
 
   function ensureDB(){
     const db = load();
-    if(!db.weeks) db.weeks=[]; // {id, startISO, stock:{p:q}, costs:{p:c}, initial:{p:q}}
-    if(!db.sales) db.sales=[]; // {id, ts, buyer, product, qty, unitPrice, total, status, paid}
-    if(!db.masterCosts) db.masterCosts={...DEFAULT_COSTS}; // costos por defecto persistentes
+    if(!db.meta) db.meta={version:3, createdAt: todayISO()};
+    if(!db.masterCosts) db.masterCosts={mantecoso:0,chanco:0,huevos:0,mantequilla:0};
+    if(!db.weeks) db.weeks=[]; // cada semana: {id,startISO,initial:{},stock:{},costs:{}}
+    if(!db.sales) db.sales=[]; // ventas: {id,ts,buyer,product,qty,unitPrice,total,status,paid}
     pruneOld(db);
-    const cur = currentWeek(db);
-    if(!cur){ const wk = createWeek(db); db.weeks.push(wk); save(db); }
+    if(!currentWeek(db)){ db.weeks.push(createWeek(db)); save(db); }
     return db;
   }
 
@@ -109,8 +107,9 @@
 
   function createWeek(db){
     const start = startOfWeek();
-    const stock={}; const costs={}; PRODUCTS.forEach(p=>{stock[p]=0; costs[p]=(db?.masterCosts?.[p]??0)});
-    return { id:crypto.randomUUID(), startISO:start.toISOString(), stock, costs, initial:{mantecoso:0,chanco:0,huevos:0,mantequilla:0} };
+    const initial={}; const stock={}; const costs={};
+    PRODUCTS.forEach(p=>{ initial[p]=0; stock[p]=0; costs[p]=db?.masterCosts?.[p]??0; });
+    return { id: crypto.randomUUID(), startISO: start.toISOString(), initial, stock, costs };
   }
 
   function setWeekTag(){
@@ -120,7 +119,7 @@
     $('#weekTag').textContent = `Semana ${isoDate(wk.startISO)} a ${isoDate(end)}`;
   }
 
-  // ---------- UI ----------
+  // ================== UI ==================
   const tabs = [
     {id:'stock', name:'Stock semanal'},
     {id:'venta', name:'Registrar venta'},
@@ -129,71 +128,61 @@
   ];
 
   function renderTabs(active='stock'){
-    const cont = $('#tabs');
-    cont.innerHTML = '';
+    const cont = $('#tabs'); cont.innerHTML='';
     tabs.forEach(t=>{
       const b = document.createElement('button');
       b.className = 'tab'+(t.id===active?' active':'');
       b.textContent = t.name;
-      b.onclick=()=>{ renderTabs(t.id); renderView(t.id); };
+      b.onclick = ()=>{ renderTabs(t.id); renderView(t.id); };
       cont.appendChild(b);
     });
   }
 
   function renderView(id){
-    if(id==='stock') renderStock();
-    if(id==='venta') renderVenta();
-    if(id==='resumen') renderResumen();
-    if(id==='hist') renderHistorial();
+    if(id==='stock') return renderStock();
+    if(id==='venta') return renderVenta();
+    if(id==='resumen') return renderResumen();
+    if(id==='hist') return renderHistorial();
   }
 
-  // ---------- VISTA: Stock semanal ----------
+  // ================== VISTA: Stock ==================
   function renderStock(){
-    const db = ensureDB();
-    let wk = currentWeek(db);
-    if(!wk){ wk=createWeek(db); db.weeks.push(wk); save(db);}    
-    setWeekTag();
+    const db = ensureDB(); const wk = currentWeek(db); setWeekTag();
+    const v = $('#views'); v.innerHTML='';
 
-    const v = $('#views');
-    v.innerHTML = '';
-    const card = document.createElement('div');
-    card.className='card grid';
+    const card = document.createElement('div'); card.className='card grid';
+    card.innerHTML = `
+      <div class="row" style="justify-content:space-between">
+        <div style="font-weight:800">Carga inicial de stock (esta semana)</div>
+        <div class="mini">Fija <b>costos por defecto</b> y los de la semana. El stock inicial sólo llena el stock disponible si aún está en 0.</div>
+      </div>
+      <div class="grid g2" id="stockForm"></div>
+      <div class="row">
+        <button class="btn" id="saveWeek">Guardar stock/costos (semana)</button>
+        <button class="btn secondary" id="saveDefaults">Guardar costos por defecto</button>
+      </div>
+    `;
 
-    const head = document.createElement('div');
-    head.innerHTML = `<div class="row" style="justify-content:space-between">
-      <div style="font-weight:800">Carga inicial de stock (esta semana)</div>
-      <div class="mini">Puedes fijar <b>costos por defecto</b> y también los de esta semana.</div>
-    </div>`;
-    card.appendChild(head);
-
-    const form = document.createElement('div');
-    form.className='grid g2';
-
+    const form = card.querySelector('#stockForm');
     PRODUCTS.forEach(p=>{
-      const block = document.createElement('div');
-      block.className='grid';
+      const block = document.createElement('div'); block.className='grid';
       block.innerHTML = `
         <label>${p.toUpperCase()} – cantidad inicial</label>
         <input type="number" min="0" step="1" id="stk_${p}" value="${wk.initial[p]||0}">
         <label>${p.toUpperCase()} – costo proveedor por unidad (semana)</label>
         <input type="number" min="0" step="1" id="cost_${p}" value="${wk.costs[p]||0}">
-        <label class="mini">Costo por defecto: $${fmt(db.masterCosts[p]||0)}</label>
+        <div class="mini">Costo por defecto actual: $${fmt(db.masterCosts[p]||0)}</div>
       `;
       form.appendChild(block);
     });
 
-    const btns = document.createElement('div');
-    btns.className='row';
+    $('#views').appendChild(card);
 
-    const saveBtn=document.createElement('button'); saveBtn.className='btn'; saveBtn.textContent='Guardar stock/costos (semana)';
-    saveBtn.onclick=()=>{
-      const db2 = ensureDB();
-      const cur = currentWeek(db2);
+    $('#saveWeek').onclick = ()=>{
+      const db2 = ensureDB(); const cur = currentWeek(db2);
       PRODUCTS.forEach(p=>{
         const initVal = Number($(`#stk_${p}`).value||0);
         const costVal = Number($(`#cost_${p}`).value||0);
-        // Si cambia el inicial y aún no se definió el stock, sincronizamos stock disponible al inicial.
-        // Si ya había stock (por ventas previas), solo actualizamos "initial" y no tocamos stock.
         const wasZero = (cur.initial[p]||0)===0 && (cur.stock[p]||0)===0;
         cur.initial[p] = initVal;
         if(wasZero){ cur.stock[p] = initVal; }
@@ -202,29 +191,20 @@
       save(db2);
       alert('Stock inicial y costos de la semana actualizados.');
       renderResumen(); renderTabs('resumen');
-    }
+    };
 
-    const saveDefaults=document.createElement('button'); saveDefaults.className='btn secondary'; saveDefaults.textContent='Guardar costos por defecto';
-    saveDefaults.onclick=()=>{
-      const db2 = ensureDB();
-      const cur = currentWeek(db2);
-      PRODUCTS.forEach(p=>{ db2.masterCosts[p]=cur.costs[p]||0; });
-      save(db2);
-      alert('Costos por defecto actualizados.');
-    }
-
-    btns.appendChild(saveBtn);
-    btns.appendChild(saveDefaults);
-
-    card.appendChild(form);
-    card.appendChild(btns);
-    v.appendChild(card);
+    $('#saveDefaults').onclick = ()=>{
+      const db2 = ensureDB(); const cur = currentWeek(db2);
+      PRODUCTS.forEach(p=>{ db2.masterCosts[p] = cur.costs[p]||0; });
+      save(db2); alert('Costos por defecto actualizados.');
+    };
   }
 
-  // ---------- VISTA: Registrar venta ----------
+  // ================== VISTA: Registrar venta ==================
   function renderVenta(){
-    const db = ensureDB(); setWeekTag();
+    const db = ensureDB(); const wk = currentWeek(db); setWeekTag();
     const v = $('#views'); v.innerHTML='';
+
     const card = document.createElement('div'); card.className='card grid';
     card.innerHTML = `
       <div style="font-weight:800">Nueva venta</div>
@@ -269,8 +249,7 @@
     function updateCalc(){
       const q = Number($('#qty').value||0);
       const u = Number($('#unit').value||0);
-      const tot = q*u;
-      $('#calc').textContent = `Total venta: $${fmt(tot)}`;
+      $('#calc').textContent = `Total venta: $${fmt(q*u)}`;
     }
     updateCalc();
     ['qty','unit'].forEach(id=>$('#'+id).addEventListener('input',updateCalc));
@@ -283,44 +262,34 @@
       const status = $('#status').value;
       const paid = Math.max(0, Number($('#paid').value||0));
 
-      const db = ensureDB();
-      const wk = currentWeek(db);
+      const db = ensureDB(); const wk = currentWeek(db);
       if((wk.stock[product]||0) < qty){
         if(!confirm(`No alcanza el stock de ${product}. Stock actual: ${wk.stock[product]||0}. ¿Registrar igual?`)) return;
       }
 
       const total = qty*unit;
-      const sale = { id:crypto.randomUUID(), ts:todayISO(), buyer, product, qty, unitPrice:unit, total, status, paid: status==='pagado'? total : (status==='parcial'? Math.min(paid,total):0) };
+      const sale = { id: crypto.randomUUID(), ts: todayISO(), buyer, product, qty, unitPrice: unit, total, status, paid: status==='pagado'? total : (status==='parcial'? Math.min(paid,total):0) };
       db.sales.unshift(sale);
       wk.stock[product] = Math.max(0, (wk.stock[product]||0) - qty);
       save(db);
       alert('Venta guardada.');
       renderResumen(); renderTabs('resumen');
-    }
+    };
   }
 
-  // ---------- VISTA: Resumen detallado ----------
+  // ================== VISTA: Resumen detallado ==================
   function renderResumen(){
-    const db = ensureDB(); setWeekTag();
-    const wk = currentWeek(db);
+    const db = ensureDB(); const wk = currentWeek(db); setWeekTag();
     const v = $('#views'); v.innerHTML='';
 
-    // Ventas últimos 14 días
     const now = Date.now();
     const sales14 = db.sales.filter(s=> (now - new Date(s.ts).getTime()) <= DAYS_14);
 
-    // Totales generales
-    const totals = {ventas:0,cobrado:0,porcobrar:0};
-    sales14.forEach(s=>{
-      totals.ventas += s.total;
-      totals.cobrado += s.paid||0;
-    });
+    const totals = sales14.reduce((acc,s)=>{ acc.ventas+=s.total; acc.cobrado+=s.paid||0; return acc; }, {ventas:0,cobrado:0});
     totals.porcobrar = Math.max(0, totals.ventas - totals.cobrado);
 
-    // A pagar a proveedor (por semana): costo * cantidad inicial
     const pagarProveedor = PRODUCTS.reduce((acc,p)=> acc + (wk.costs[p]||0)*(wk.initial[p]||0), 0);
-
-    const utilBrutaEst = totals.cobrado - pagarProveedor; // criterio simple
+    const utilBrutaEst = totals.cobrado - pagarProveedor;
 
     const cardTop = document.createElement('div'); cardTop.className='card';
     cardTop.innerHTML = `
@@ -333,22 +302,22 @@
       </div>
     `;
 
-    // Detalle por producto (ventas, cobros, por cobrar, stock)
+    // Detalle por producto
     const detail = PRODUCTS.map(p=>{
       const sProd = sales14.filter(s=> s.product===p);
       const ventas = sProd.reduce((a,b)=>a+b.total,0);
       const cobrado = sProd.reduce((a,b)=>a+(b.paid||0),0);
-      const porcobrar = Math.max(0, ventas-cobrado);
+      const porcobrar = Math.max(0, ventas - cobrado);
       const vendidos = Math.max(0,(wk.initial[p]||0) - (wk.stock[p]||0));
       const costoCompra = (wk.costs[p]||0) * (wk.initial[p]||0);
-      const costoVendidos = (wk.costs[p]||0) * vendidos; // alternativa
-      const margenSobreVendidos = cobrado - costoVendidos;
-      return {p, ventas, cobrado, porcobrar, vendidos, stock:wk.stock[p]||0, inicial:wk.initial[p]||0, costoCompra, costoVendidos, margenSobreVendidos};
+      const costoVendidos = (wk.costs[p]||0) * vendidos;
+      const margenVendidos = cobrado - costoVendidos;
+      return {p, ventas, cobrado, porcobrar, vendidos, stock:wk.stock[p]||0, inicial:wk.initial[p]||0, costoCompra, costoVendidos, margenVendidos};
     });
 
     const cardDet = document.createElement('div'); cardDet.className='card';
     cardDet.innerHTML = `
-      <div style="font-weight:800;margin-bottom:8px">Detalle por producto (14 días)</div>
+      <div style="font-weight:800;margin-bottom:8px">Detalle por producto (últimos 14 días)</div>
       <table>
         <thead>
           <tr>
@@ -376,14 +345,14 @@
               <td class="right">$${fmt(d.porcobrar)}</td>
               <td class="right">$${fmt(d.costoCompra)}</td>
               <td class="right">$${fmt(d.costoVendidos)}</td>
-              <td class="right ${d.margenSobreVendidos>=0?'ok':'danger-t'}">$${fmt(d.margenSobreVendidos)}</td>
+              <td class="right ${d.margenVendidos>=0?'ok':'danger-t'}">$${fmt(d.margenVendidos)}</td>
             </tr>
           `).join('')}
         </tbody>
       </table>
     `;
 
-    // Stock actual simple
+    // Stock actual
     const cardStock = document.createElement('div'); cardStock.className='card';
     cardStock.innerHTML = `
       <div style="font-weight:800;margin-bottom:8px">Stock disponible (semana actual)</div>
@@ -400,7 +369,7 @@
     v.appendChild(cardStock);
   }
 
-  // ---------- VISTA: Historial ----------
+  // ================== VISTA: Historial ==================
   function renderHistorial(){
     const db = ensureDB(); setWeekTag();
     const v = $('#views'); v.innerHTML='';
@@ -476,8 +445,7 @@
       const mark = e.target.closest('button[data-mark]');
       if(mark){
         const id = mark.getAttribute('data-mark');
-        const db = ensureDB();
-        const s = db.sales.find(x=>x.id===id);
+        const db = ensureDB(); const s = db.sales.find(x=>x.id===id);
         if(s){ s.status='pagado'; s.paid=s.total; save(db); paint(); renderResumen(); }
         return;
       }
@@ -485,22 +453,16 @@
       if(!b) return;
       const id = b.getAttribute('data-id');
       if(confirm('¿Eliminar esta venta?')){
-        const db = ensureDB();
-        db.sales = db.sales.filter(s=>s.id!==id);
-        save(db); paint(); renderResumen();
+        const db = ensureDB(); db.sales = db.sales.filter(s=>s.id!==id); save(db); paint(); renderResumen();
       }
     });
   }
 
-  // ---------- Export CSV ----------
+  // ================== Export/Import ==================
   function exportCSV(){
     const db = ensureDB();
     const rows = [["fecha","comprador","producto","cantidad","precio_unit","total","estado","pagado"]];
-    db.sales.forEach(s=>{
-      rows.push([
-        new Date(s.ts).toLocaleString('es-CL'), s.buyer||'', s.product, s.qty, s.unitPrice, s.total, s.status, s.paid||0
-      ]);
-    });
+    db.sales.forEach(s=> rows.push([ new Date(s.ts).toLocaleString('es-CL'), s.buyer||'', s.product, s.qty, s.unitPrice, s.total, s.status, s.paid||0 ]));
     const csv = rows.map(r=> r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(',')).join('
 ');
     const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
@@ -509,7 +471,6 @@
     setTimeout(()=>URL.revokeObjectURL(url),5000);
   }
 
-  // ---------- Export/Import JSON (para traspasar entre dispositivos) ----------
   function exportJSON(){
     const db = ensureDB();
     const blob = new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
@@ -517,11 +478,13 @@
     const a = document.createElement('a'); a.href=url; a.download='datos_stock_ventas.json'; a.click();
     setTimeout(()=>URL.revokeObjectURL(url),5000);
   }
+
   function importJSON(file){
     const reader = new FileReader();
     reader.onload = e => {
       try{
         const data = JSON.parse(e.target.result);
+        if(!data || typeof data!=='object' || !data.weeks || !data.sales){ throw new Error('estructura inválida'); }
         localStorage.setItem(DBKEY, JSON.stringify(data));
         alert('Datos importados correctamente.');
         location.reload();
@@ -530,26 +493,16 @@
     reader.readAsText(file);
   }
 
-  // ---------- Nueva semana ----------
+  // ================== Acciones globales ==================
   function rollWeek(){
-    const db = ensureDB();
-    const cur = currentWeek(db);
-    if(cur && !confirm('Esto creará una nueva semana (no borra ventas). ¿Continuar?')) return;
-    const wk = createWeek(db);
-    db.weeks.push(wk);
-    save(db);
-    renderTabs('stock'); renderStock(); setWeekTag();
+    const db = ensureDB(); if(!confirm('Crear nueva semana (no borra ventas)?')) return;
+    db.weeks.push(createWeek(db)); save(db); renderTabs('stock'); renderStock(); setWeekTag();
   }
 
-  // ---------- Borrar todo ----------
   function wipe(){
-    if(confirm('¿Borrar todos los datos? (No se puede deshacer)')){
-      localStorage.removeItem(DBKEY);
-      location.reload();
-    }
+    if(confirm('¿Borrar todos los datos? (No se puede deshacer)')){ localStorage.removeItem(DBKEY); location.reload(); }
   }
 
-  // ---------- Eventos globales ----------
   function init(){
     ensureDB(); setWeekTag();
     renderTabs('stock'); renderStock();
