@@ -24,7 +24,7 @@
     .btn{background:#2a8346;color:white}
     .btn.secondary{background:#334155}
     .btn.warn{background:var(--warn);color:#0b0f14}
-    .btn.danger{background:var(--danger)}
+    .btn.danger{background:#ef4444}
     .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .mini{font-size:12px;color:var(--muted)}
     .pill{padding:6px 10px;border-radius:999px;background:#1f2937;color:#cbd5e1;font-size:12px}
@@ -35,7 +35,7 @@
     .muted{color:var(--muted)}
     .ok{color:var(--accent)}
     .warn-t{color:var(--warn)}
-    .danger-t{color:var(--danger)}
+    .danger-t{color:#ef4444}
     .footer{position:sticky;bottom:0;backdrop-filter:blur(8px);background:rgba(11,15,20,.7);padding:10px;margin:0 -16px}
     .footer .bar{display:flex;gap:8px;flex-wrap:wrap}
     .help{font-size:12px;color:#9aa9bf}
@@ -45,7 +45,6 @@
 <body>
   <div class="wrap">
     <div class="app-title">🧀🥚 Stock & Ventas <span class="pill" id="weekTag"></span></div>
-
     <div class="tabs" id="tabs"></div>
     <div id="views"></div>
     <div id="errorBox" class="err"></div>
@@ -67,49 +66,50 @@
 
 <script>
 (function(){
-  // ---------- Utilidades ----------
+  // -------- Utilidades --------
   function safeUUID(){
     try{ if(window.crypto && typeof window.crypto.randomUUID==='function'){ return window.crypto.randomUUID(); } }catch(e){}
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});
   }
   function showError(msg){
-    var box=document.getElementById('errorBox'); box.style.display='block'; box.textContent='⚠️ '+msg; console.error(msg);
+    var box=document.getElementById('errorBox'); if(!box) return;
+    box.style.display='block'; box.textContent='⚠️ '+msg; console.error(msg);
   }
   var $=function(sel,p){return (p||document).querySelector(sel);};
-  var fmt=function(n){ return new Intl.NumberFormat('es-CL',{minimumFractionDigits:0}).format(Number(n||0)); };
-  var q2=function(n){ return Math.round((Number(n||0) + Number.EPSILON)*100)/100; }; // redondeo a 2 decimales
-  var todayISO=function(){ return new Date().toISOString(); };
-  var startOfWeek=function(d){ d=d?new Date(d):new Date(); var x=new Date(d); var day=(x.getDay()+6)%7; x.setHours(0,0,0,0); x.setDate(x.getDate()-day); return x; };
-  var isoDate=function(d){ return new Date(d).toISOString().slice(0,10); };
-  var DAYS_14 = 14*24*60*60*1000;
-  var PRODUCTS = ['mantecoso','chanco','huevos','mantequilla'];
+  var fmt=function(n){return new Intl.NumberFormat('es-CL',{minimumFractionDigits:0}).format(Number(n||0));};
+  var q2=function(n){return Math.round((Number(n||0)+Number.EPSILON)*100)/100;}; // 2 decimales
+  var todayISO=function(){return new Date().toISOString();};
+  var startOfWeek=function(d){d=d?new Date(d):new Date();var x=new Date(d);var day=(x.getDay()+6)%7;x.setHours(0,0,0,0);x.setDate(x.getDate()-day);return x;};
+  var isoDate=function(d){return new Date(d).toISOString().slice(0,10);};
+  var DAYS_14=14*24*60*60*1000;
+  var PRODUCTS=['mantecoso','chanco','huevos','mantequilla'];
 
-  // ---------- Persistencia ----------
-  var DBKEY='qy-app-v5';
-  function load(){ try{ return JSON.parse(localStorage.getItem(DBKEY))||{} }catch(e){ return {}; } }
-  function save(db){ localStorage.setItem(DBKEY, JSON.stringify(db)); }
+  // -------- Persistencia --------
+  var DBKEY='qy-app-v6';
+  function load(){try{return JSON.parse(localStorage.getItem(DBKEY))||{}}catch(e){return {};}}
+  function save(db){localStorage.setItem(DBKEY, JSON.stringify(db));}
   function pruneOld(db){
     var now=Date.now();
-    db.sales=(db.sales||[]).filter(function(s){ return (now - new Date(s.ts).getTime())<=DAYS_14; });
-    db.weeks=(db.weeks||[]).filter(function(w){ return (now - new Date(w.startISO).getTime())<=DAYS_14; });
+    db.sales=(db.sales||[]).filter(function(s){return (now-new Date(s.ts).getTime())<=DAYS_14;});
+    db.weeks=(db.weeks||[]).filter(function(w){return (now-new Date(w.startISO).getTime())<=DAYS_14;});
   }
   function currentWeek(db){
     var start=startOfWeek();
-    return (db.weeks||[]).find(function(w){ return isoDate(w.startISO)===isoDate(start); });
+    return (db.weeks||[]).find(function(w){return isoDate(w.startISO)===isoDate(start);});
   }
   function createWeek(db){
-    var start=startOfWeek(); var initial={},stock={},costs={};
-    PRODUCTS.forEach(function(p){ initial[p]=0; stock[p]=0; costs[p]=(db&&db.masterCosts&&db.masterCosts[p])||0; });
-    return { id:safeUUID(), startISO:start.toISOString(), initial:initial, stock:stock, costs:costs };
+    var start=startOfWeek();var initial={},stock={},costs={};
+    PRODUCTS.forEach(function(p){initial[p]=0;stock[p]=0;costs[p]=(db&&db.masterCosts&&db.masterCosts[p])||0;});
+    return {id:safeUUID(),startISO:start.toISOString(),initial:initial,stock:stock,costs:costs};
   }
   function ensureDB(){
     var db=load();
-    if(!db.meta) db.meta={version:5, createdAt: todayISO()};
+    if(!db.meta) db.meta={version:6, createdAt: todayISO()};
     if(!db.masterCosts) db.masterCosts={mantecoso:0,chanco:0,huevos:0,mantequilla:0};
     if(!db.weeks) db.weeks=[];
     if(!db.sales) db.sales=[];
     pruneOld(db);
-    if(!currentWeek(db)){ db.weeks.push(createWeek(db)); save(db); }
+    if(!currentWeek(db)){db.weeks.push(createWeek(db));save(db);}
     return db;
   }
   function setWeekTag(){
@@ -118,20 +118,22 @@
     var tag=$('#weekTag'); if(tag) tag.textContent='Semana '+isoDate(wk.startISO)+' a '+isoDate(end);
   }
 
-  // ---------- UI ----------
+  // -------- UI --------
   var tabs=[
     {id:'stock', name:'Stock semanal'},
     {id:'venta', name:'Registrar venta'},
     {id:'resumen', name:'Resumen detallado'},
     {id:'hist', name:'Historial'}
   ];
-  function renderTabs(active){ active=active||'stock';
-    var cont=$('#tabs'); cont.innerHTML='';
+  function renderTabs(active){
+    active=active||'stock';
+    var cont=$('#tabs'); if(!cont) return;
+    cont.innerHTML='';
     tabs.forEach(function(t){
       var b=document.createElement('button');
       b.className='tab'+(t.id===active?' active':'');
       b.textContent=t.name;
-      b.onclick=function(){ renderTabs(t.id); renderView(t.id); };
+      b.onclick=function(){renderTabs(t.id);renderView(t.id);};
       cont.appendChild(b);
     });
   }
@@ -142,7 +144,7 @@
     if(id==='hist') return renderHistorial();
   }
 
-  // ---------- STOCK ----------
+  // -------- Stock --------
   function renderStock(){
     try{
       var db=ensureDB(); var wk=currentWeek(db); setWeekTag();
@@ -151,7 +153,7 @@
       card.innerHTML='\
         <div class="row" style="justify-content:space-between">\
           <div style="font-weight:800">Carga inicial de stock (esta semana)</div>\
-          <div class="mini">Puedes fijar <b>costos por defecto</b> y los de la semana. Soporta decimales (ej: 0.5).</div>\
+          <div class="mini">Soporta decimales (ej: 0.5 kg). Los costos por defecto se guardan para próximas semanas.</div>\
         </div>\
         <div class="grid g2" id="stockForm"></div>\
         <div class="row">\
@@ -170,24 +172,235 @@
           <div class="mini">Costo por defecto actual: $'+fmt(db.masterCosts[p]||0)+'</div>';
         form.appendChild(block);
       });
-
       $('#saveWeek').onclick=function(){
         var db2=ensureDB(); var cur=currentWeek(db2);
         PRODUCTS.forEach(function(p){
           var initVal=q2($('#stk_'+p).value||0);
           var costVal=q2($('#cost_'+p).value||0);
-          var wasZero=(q2(cur.initial[p]||0)===0) && (q2(cur.stock[p]||0)===0);
+          var wasZero=(q2(cur.initial[p]||0)===0)&&(q2(cur.stock[p]||0)===0);
           cur.initial[p]=initVal;
-          if(wasZero){ cur.stock[p]=initVal; }
+          if(wasZero){cur.stock[p]=initVal;}
           cur.costs[p]=costVal;
         });
-        save(db2); alert('Stock inicial y costos de la semana actualizados.');
+        save(db2); alert('Stock y costos de la semana actualizados.');
         renderResumen(); renderTabs('resumen');
       };
-
       $('#saveDefaults').onclick=function(){
         var db2=ensureDB(); var cur=currentWeek(db2);
-        PRODUCTS.forEach(function(p){ db2.masterCosts[p]=q2(cur.costs[p]||0); });
+        PRODUCTS.forEach(function(p){db2.masterCosts[p]=q2(cur.costs[p]||0);});
         save(db2); alert('Costos por defecto actualizados.');
       };
-    }catch(e){ sh
+    }catch(e){ showError('Error en Stock: '+e.message); }
+  }
+
+  // -------- Ventas --------
+  function renderVenta(){
+    try{
+      ensureDB(); setWeekTag();
+      var v=$('#views'); v.innerHTML='';
+      var card=document.createElement('div'); card.className='card grid';
+      card.innerHTML='\
+        <div style="font-weight:800">Nueva venta</div>\
+        <div class="grid g2">\
+          <div><label>Comprador</label><input id="buyer" placeholder="Nombre o negocio" /></div>\
+          <div><label>Producto</label><select id="product">'+PRODUCTS.map(function(p){return '<option value="'+p+'">'+p+'</option>';}).join('')+'</select></div>\
+          <div><label>Cantidad</label><input type="number" id="qty" min="0.01" step="0.01" value="0.50" /></div>\
+          <div><label>Precio unitario de venta</label><input type="number" id="unit" min="0" step="0.01" value="0" /></div>\
+          <div><label>Estado de pago</label><select id="status"><option value="pagado">Pagado</option><option value="pendiente">Pendiente</option><option value="parcial">Parcial</option></select></div>\
+          <div><label>Monto pagado (si es parcial)</label><input type="number" id="paid" min="0" step="0.01" value="0" /></div>\
+        </div>\
+        <div class="row"><button class="btn" id="saveSale">Guardar venta</button> <span class="mini" id="calc"></span></div>';
+      v.appendChild(card);
+      function updateCalc(){var q=q2($('#qty').value||0),u=q2($('#unit').value||0);$('#calc').textContent='Total venta: $'+fmt(q2(q*u));}
+      updateCalc(); $('#qty').addEventListener('input',updateCalc); $('#unit').addEventListener('input',updateCalc);
+      $('#saveSale').onclick=function(){
+        var buyer=($('#buyer').value||'').trim();
+        var product=$('#product').value;
+        var qty=q2($('#qty').value||0.01); if(qty<0.01) qty=0.01;
+        var unit=q2($('#unit').value||0);
+        var status=$('#status').value;
+        var paid=q2($('#paid').value||0);
+        var db=ensureDB(); var wk=currentWeek(db);
+        if(q2(wk.stock[product]||0)<qty){ if(!confirm('No alcanza el stock de '+product+'. Stock actual: '+q2(wk.stock[product]||0)+'. ¿Registrar igual?')) return; }
+        var total=q2(qty*unit);
+        var paidFinal=(status==='pagado')? total : (status==='parcial'? Math.min(paid,total):0); paidFinal=q2(paidFinal);
+        var sale={ id:safeUUID(), ts:todayISO(), buyer:buyer, product:product, qty:qty, unitPrice:unit, total:total, status:status, paid:paidFinal };
+        db.sales.unshift(sale);
+        wk.stock[product]=q2(Math.max(0, q2(wk.stock[product]||0)-qty));
+        save(db); alert('Venta guardada.');
+        renderResumen(); renderTabs('resumen');
+      };
+    }catch(e){ showError('Error en Registrar venta: '+e.message); }
+  }
+
+  // -------- Resumen --------
+  function renderResumen(){
+    try{
+      var db=ensureDB(); var wk=currentWeek(db); setWeekTag();
+      var v=$('#views'); v.innerHTML='';
+      var now=Date.now();
+      var sales14=db.sales.filter(function(s){return (now-new Date(s.ts).getTime())<=DAYS_14;});
+      var totals=sales14.reduce(function(a,s){a.ventas+=s.total;a.cobrado+=(s.paid||0);return a;},{ventas:0,cobrado:0});
+      totals.ventas=q2(totals.ventas); totals.cobrado=q2(totals.cobrado); totals.porcobrar=q2(Math.max(0, totals.ventas-totals.cobrado));
+      var pagarProveedor=PRODUCTS.reduce(function(acc,p){return q2(acc + q2(wk.costs[p]||0)*q2(wk.initial[p]||0));},0);
+      var utilBrutaEst=q2(totals.cobrado - pagarProveedor);
+      var cardTop=document.createElement('div'); cardTop.className='card';
+      cardTop.innerHTML='\
+        <div class="row" style="justify-content:space-between;flex-wrap:wrap">\
+          <div><div class="mini">Ventas (14 días)</div><div style="font-size:22px;font-weight:800">$'+fmt(totals.ventas)+'</div></div>\
+          <div><div class="mini">Cobrado</div><div style="font-size:22px;font-weight:800" class="ok">$'+fmt(totals.cobrado)+'</div></div>\
+          <div><div class="mini">Por cobrar</div><div style="font-size:22px;font-weight:800" class="warn-t">$'+fmt(totals.porcobrar)+'</div></div>\
+          <div><div class="mini">A pagar a proveedor (semana)</div><div style="font-size:22px;font-weight:800">$'+fmt(pagarProveedor)+'</div></div>\
+          <div><div class="mini">Utilidad bruta estimada</div><div style="font-size:22px;font-weight:800" class="'+(utilBrutaEst>=0?'ok':'danger-t')+'">$'+fmt(utilBrutaEst)+'</div></div>\
+        </div>';
+      var detail=PRODUCTS.map(function(p){
+        var sProd=sales14.filter(function(s){return s.product===p;});
+        var ventas=q2(sProd.reduce(function(a,b){return a+b.total;},0));
+        var cobrado=q2(sProd.reduce(function(a,b){return a+(b.paid||0);},0));
+        var porcobrar=q2(Math.max(0,ventas-cobrado));
+        var vendidos=q2(Math.max(0, q2(wk.initial[p]||0)-q2(wk.stock[p]||0)));
+        var costoCompra=q2(q2(wk.costs[p]||0)*q2(wk.initial[p]||0));
+        var costoVendidos=q2(q2(wk.costs[p]||0)*vendidos);
+        var margenVendidos=q2(cobrado - costoVendidos);
+        return {p:p,ventas:ventas,cobrado:cobrado,porcobrar:porcobrar,vendidos:vendidos,stock:q2(wk.stock[p]||0),inicial:q2(wk.initial[p]||0),costoCompra:costoCompra,costoVendidos:costoVendidos,margenVendidos:margenVendidos};
+      });
+      var cardDet=document.createElement('div'); cardDet.className='card';
+      cardDet.innerHTML='\
+        <div style="font-weight:800;margin-bottom:8px">Detalle por producto (últimos 14 días)</div>\
+        <table><thead><tr>\
+        <th>Producto</th><th class="right">Inicial</th><th class="right">Vendidos</th><th class="right">Stock</th>\
+        <th class="right">Ventas</th><th class="right">Cobrado</th><th class="right">Por cobrar</th>\
+        <th class="right">Costo compra</th><th class="right">Costo vendidos</th><th class="right">Margen s/ vendidos</th>\
+        </tr></thead><tbody>'+
+        detail.map(function(d){
+          return '<tr>\
+            <td style="text-transform:capitalize">'+d.p+'</td>\
+            <td class="right">'+d.inicial.toFixed(2)+'</td>\
+            <td class="right">'+d.vendidos.toFixed(2)+'</td>\
+            <td class="right">'+d.stock.toFixed(2)+'</td>\
+            <td class="right">$'+fmt(d.ventas)+'</td>\
+            <td class="right">$'+fmt(d.cobrado)+'</td>\
+            <td class="right">$'+fmt(d.porcobrar)+'</td>\
+            <td class="right">$'+fmt(d.costoCompra)+'</td>\
+            <td class="right">$'+fmt(d.costoVendidos)+'</td>\
+            <td class="right '+(d.margenVendidos>=0?'ok':'danger-t')+'">$'+fmt(d.margenVendidos)+'</td>\
+          </tr>';
+        }).join('')+'</tbody></table>';
+      var cardStock=document.createElement('div'); cardStock.className='card';
+      cardStock.innerHTML='\
+        <div style="font-weight:800;margin-bottom:8px">Stock disponible (semana actual)</div>\
+        <table><thead><tr><th>Producto</th><th class="right">Cantidad</th><th class="right">Costo proveedor (unit.)</th></tr></thead><tbody>'+
+        PRODUCTS.map(function(p){return '<tr><td style="text-transform:capitalize">'+p+'</td><td class="right">'+q2(wk.stock[p]||0).toFixed(2)+'</td><td class="right">$'+fmt(q2(wk.costs[p]||0))+'</td></tr>';}).join('')+
+        '</tbody></table>';
+      v.appendChild(cardTop); v.appendChild(cardDet); v.appendChild(cardStock);
+    }catch(e){ showError('Error en Resumen: '+e.message); }
+  }
+
+  // -------- Historial --------
+  function renderHistorial(){
+    try{
+      var db=ensureDB(); setWeekTag();
+      var v=$('#views'); v.innerHTML='';
+      var tools=document.createElement('div'); tools.className='card row';
+      tools.innerHTML='\
+        <div class="row" style="gap:12px;align-items:flex-end">\
+          <div><label>Filtrar por producto</label><select id="fProd"><option value="">Todos</option>'+PRODUCTS.map(function(p){return '<option>'+p+'</option>';}).join('')+'</select></div>\
+          <div><label>Estado</label><select id="fStatus"><option value="">Todos</option><option>pagado</option><option>pendiente</option><option>parcial</option></select></div>\
+          <button class="btn secondary" id="applyF">Aplicar</button>\
+        </div>';
+      v.appendChild(tools);
+      var listCard=document.createElement('div'); listCard.className='card';
+      var table=document.createElement('table');
+      var thead=document.createElement('thead');
+      thead.innerHTML='<tr><th>Fecha</th><th>Comprador</th><th>Producto</th><th class="right">Cant.</th><th class="right">P. Unit.</th><th class="right">Total</th><th>Estado</th><th class="right">Pagado</th><th></th></tr>';
+      table.appendChild(thead);
+      var tbody=document.createElement('tbody');
+      function paint(){
+        var now=Date.now();
+        var items=db.sales.filter(function(s){return (now-new Date(s.ts).getTime())<=DAYS_14;});
+        var fp=$('#fProd').value; var fs=$('#fStatus').value;
+        if(fp) items=items.filter(function(s){return s.product===fp;});
+        if(fs) items=items.filter(function(s){return s.status===fs;});
+        tbody.innerHTML='';
+        if(items.length===0){
+          var tr=document.createElement('tr'); var td=document.createElement('td'); td.colSpan=9; td.className='muted'; td.textContent='No hay ventas registradas.'; tr.appendChild(td); tbody.appendChild(tr);
+        }else{
+          items.forEach(function(s){
+            var tr=document.createElement('tr');
+            tr.innerHTML='\
+              <td>'+new Date(s.ts).toLocaleString('es-CL',{dateStyle:'short', timeStyle:'short'})+'</td>\
+              <td>'+(s.buyer||'-')+'</td>\
+              <td style="text-transform:capitalize">'+s.product+'</td>\
+              <td class="right">'+q2(s.qty).toFixed(2)+'</td>\
+              <td class="right">$'+fmt(q2(s.unitPrice))+'</td>\
+              <td class="right">$'+fmt(q2(s.total))+'</td>\
+              <td>'+s.status+'</td>\
+              <td class="right">$'+fmt(q2(s.paid||0))+'</td>\
+              <td class="right"><button class="btn secondary" data-mark="'+s.id+'">Marcar pagado</button> <button class="btn danger" data-id="'+s.id+'">Eliminar</button></td>';
+            tbody.appendChild(tr);
+          });
+        }
+      }
+      paint();
+      table.appendChild(tbody); listCard.appendChild(table); v.appendChild(listCard);
+      $('#applyF').onclick=paint;
+      listCard.addEventListener('click',function(e){
+        var mark=e.target.closest && e.target.closest('button[data-mark]');
+        if(mark){var id=mark.getAttribute('data-mark');var dbx=ensureDB();var s=dbx.sales.find(function(x){return x.id===id;});if(s){s.status='pagado';s.paid=q2(s.total);save(dbx);paint();renderResumen();}return;}
+        var btn=e.target.closest && e.target.closest('button[data-id]'); if(!btn) return;
+        var id2=btn.getAttribute('data-id');
+        if(confirm('¿Eliminar esta venta?')){var dbx2=ensureDB();dbx2.sales=dbx2.sales.filter(function(s){return s.id!==id2;});save(dbx2);paint();renderResumen();}
+      });
+    }catch(e){ showError('Error en Historial: '+e.message); }
+  }
+
+  // -------- Export / Import --------
+  function exportCSV(){
+    var db=ensureDB();
+    var rows=[["fecha","comprador","producto","cantidad","precio_unit","total","estado","pagado"]];
+    db.sales.forEach(function(s){
+      rows.push([ new Date(s.ts).toLocaleString('es-CL'), s.buyer||'', s.product, q2(s.qty).toFixed(2), q2(s.unitPrice), q2(s.total), s.status, q2(s.paid||0) ]);
+    });
+    var csv=rows.map(function(r){return r.map(function(x){return '"'+String(x).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+    var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='ventas.csv'; a.click(); setTimeout(function(){URL.revokeObjectURL(url);},5000);
+  }
+  function exportJSON(){
+    var db=ensureDB(); var blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='datos_stock_ventas.json'; a.click(); setTimeout(function(){URL.revokeObjectURL(url);},5000);
+  }
+  function importJSON(file){
+    var reader=new FileReader();
+    reader.onload=function(e){
+      try{
+        var data=JSON.parse(e.target.result);
+        if(!data || typeof data!=='object' || !data.weeks || !data.sales){ throw new Error('estructura inválida'); }
+        localStorage.setItem(DBKEY, JSON.stringify(data)); alert('Datos importados correctamente.'); location.reload();
+      }catch(err){ alert('Archivo inválido.'); }
+    };
+    reader.readAsText(file);
+  }
+
+  // -------- Acciones globales --------
+  function rollWeek(){var db=ensureDB(); if(!confirm('Crear nueva semana (no borra ventas)?')) return; db.weeks.push(createWeek(db)); save(db); renderTabs('stock'); renderStock(); setWeekTag();}
+  function wipe(){if(confirm('¿Borrar todos los datos? (No se puede deshacer)')){localStorage.removeItem(DBKEY); location.reload();}}
+
+  function init(){
+    try{
+      ensureDB(); setWeekTag(); renderTabs('stock'); renderStock();
+      $('#exportCsv').onclick=exportCSV;
+      $('#exportJson').onclick=exportJSON;
+      $('#importJson').addEventListener('change',function(e){ if(e.target.files&&e.target.files[0]) importJSON(e.target.files[0]); });
+      $('#rollWeek').onclick=rollWeek;
+      $('#wipeAll').onclick=wipe;
+    }catch(e){ showError('Error inicializando la app: '+e.message); }
+  }
+
+  // ⚡ Arranque seguro: si ya está listo, corre; si no, espera el evento.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>
