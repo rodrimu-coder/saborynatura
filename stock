@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Stock & Ventas · Quesos y Huevos</title>
+  <style>
+    :root{--bg:#0b0f14;--card:#121821;--muted:#94a3b8;--text:#e5e7eb;--accent:#22c55e;--danger:#ef4444;--warn:#f59e0b}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Inter,Arial,sans-serif}
+    .wrap{max-width:860px;margin:0 auto;padding:16px}
+    .app-title{font-weight:800;font-size:20px;letter-spacing:.2px;display:flex;align-items:center;gap:10px}
+    .tabs{display:flex;gap:8px;overflow:auto;padding-bottom:8px;margin-top:12px}
+    .tab{flex:1;white-space:nowrap;background:#19212e;border:1px solid #1f2937;color:#cbd5e1;padding:12px 10px;border-radius:12px;font-weight:600;text-align:center}
+    .tab.active{background:#233043;border-color:#2d3b50;color:#fff}
+    .card{background:var(--card);border:1px solid #1f2937;border-radius:16px;padding:14px}
+    .grid{display:grid;gap:12px}
+    .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    @media (max-width:640px){.g2{grid-template-columns:1fr}}
+    label{font-size:13px;color:#cbd5e1}
+    input,select{width:100%;padding:12px;border-radius:12px;border:1px solid #2a3649;background:#0f1520;color:#e5e7eb}
+    input[type="number"]{appearance:textfield}
+    button{appearance:none;border:0;border-radius:12px;padding:12px 14px;font-weight:700}
+    .btn{background:#2a8346;color:white}
+    .btn.secondary{background:#334155}
+    .btn.warn{background:var(--warn);color:#0b0f14}
+    .btn.danger{background:var(--danger)}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .mini{font-size:12px;color:var(--muted)}
+    .pill{padding:6px 10px;border-radius:999px;background:#1f2937;color:#cbd5e1;font-size:12px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;border-bottom:1px solid #1f2937;text-align:left;font-size:14px}
+    th{color:#a3b5cc;font-weight:700}
+    .right{text-align:right}
+    .muted{color:var(--muted)}
+    .ok{color:var(--accent)}
+    .warn-t{color:var(--warn)}
+    .danger-t{color:var(--danger)}
+    .spacer{height:10px}
+    .footer{position:sticky;bottom:0;backdrop-filter:blur(8px);background:rgba(11,15,20,.7);padding:10px;margin:0 -16px}
+    .footer .bar{display:flex;gap:8px}
+    .help{font-size:12px;color:#9aa9bf}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="app-title">🧀🥚 Stock & Ventas <span class="pill" id="weekTag"></span></div>
+
+    <div class="tabs" id="tabs"></div>
+
+    <div id="views"></div>
+
+    <div class="footer">
+      <div class="bar">
+        <button class="btn secondary" id="exportCsv">Exportar CSV</button>
+        <button class="btn warn" id="rollWeek">Nueva semana</button>
+        <button class="btn danger" id="wipeAll">Borrar todo</button>
+      </div>
+      <div class="help" style="margin-top:8px">Los datos se guardan en tu teléfono (localStorage) y se conservan por 14 días.</div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  // ---------- Utilidades ----------
+  const $ = (sel, p=document)=>p.querySelector(sel);
+  const $$ = (sel, p=document)=>Array.from(p.querySelectorAll(sel));
+  const fmt = n => new Intl.NumberFormat('es-CL',{minimumFractionDigits:0}).format(Number(n||0));
+  const todayISO = ()=>new Date().toISOString();
+  const startOfWeek = (d=new Date())=>{ const x=new Date(d); const day=(x.getDay()+6)%7; x.setHours(0,0,0,0); x.setDate(x.getDate()-day); return x; }; // Lunes
+  const isoDate = d=> new Date(d).toISOString().slice(0,10);
+  const DAYS_14 = 14*24*60*60*1000;
+
+  const PRODUCTS = ["mantecoso","chanco","huevos","mantequilla"];
+  const DEFAULT_COSTS = {mantecoso:0,chanco:0,huevos:0,mantequilla:0};
+
+  // ---------- Persistencia ----------
+  const DBKEY = 'qy-app-v1';
+  const load = ()=>{
+    try{ return JSON.parse(localStorage.getItem(DBKEY))||{} }catch{ return {} }
+  }
+  const save = (db)=> localStorage.setItem(DBKEY, JSON.stringify(db));
+
+  function ensureDB(){
+    const db = load();
+    if(!db.weeks) db.weeks=[]; // {id, startISO, stock:{p:q}, costs:{p:c}}
+    if(!db.sales) db.sales=[]; // {id, ts, buyer, product, qty, unitPrice, total, status, paid}
+    pruneOld(db);
+    // Si no hay semana actual, crear
+    const cur = currentWeek(db);
+    if(!cur){
+      const wk = createWeek();
+      db.weeks.push(wk);
+      save(db);
+    }
+    return db;
+  }
+
+  function pruneOld(db){
+    const now = Date.now();
+    db.sales = db.sales.filter(s => (now - new Date(s.ts).getTime()) <= DAYS_14);
+    db.weeks = db.weeks.filter(w => (now - new Date(w.startISO).getTime()) <= DAYS_14);
+  }
+
+  function currentWeek(db){
+    const start = startOfWeek();
+    return db.weeks.find(w => isoDate(w.startISO)===isoDate(start));
+  }
+
+  function createWeek(){
+    const start = startOfWeek();
+    const stock={}; PRODUCTS.forEach(p=>stock[p]=0);
+    return { id:crypto.randomUUID(), startISO:start.toISOString(), stock, costs:{...DEFAULT_COSTS} };
+  }
+
+  function setWeekTag(){
+    const db = ensureDB();
+    const wk = currentWeek(db);
+    const end = new Date(new Date(wk.startISO).getTime()+6*86400000);
+    $('#weekTag').textContent = `Semana ${isoDate(wk.startISO)} a ${isoDate(end)}`;
+  }
+
+  // ---------- UI ----------
+  const tabs = [
+    {id:'stock', name:'Stock semanal'},
+    {id:'venta', name:'Registrar venta'},
+    {id:'resumen', name:'Resumen'},
+    {id:'hist', name:'Historial'}
+  ];
+
+  function renderTabs(active='stock'){
+    const cont = $('#tabs');
+    cont.innerHTML = '';
+    tabs.forEach(t=>{
+      const b = document.createElement('button');
+      b.className = 'tab'+(t.id===active?' active':'');
+      b.textContent = t.name;
+      b.onclick=()=>{ renderTabs(t.id); renderView(t.id); };
+      cont.appendChild(b);
+    });
+  }
+
+  function renderView(id){
+    if(id==='stock') renderStock();
+    if(id==='venta') renderVenta();
+    if(id==='resumen') renderResumen();
+    if(id==='hist') renderHistorial();
+  }
+
+  // ---------- VISTA: Stock semanal ----------
+  function renderStock(){
+    const db = ensureDB();
+    let wk = currentWeek(db);
+    if(!wk){ wk=createWeek(); db.weeks.push(wk); save(db);}    
+    setWeekTag();
+
+    const v = $('#views');
+    v.innerHTML = '';
+    const card = document.createElement('div');
+    card.className='card grid';
+
+    const head = document.createElement('div');
+    head.innerHTML = `<div class="row" style="justify-content:space-between">
+      <div style="font-weight:800">Carga inicial de stock (esta semana)</div>
+      <div class="mini">Puedes editar costos para calcular lo que debes al proveedor</div>
+    </div>`;
+    card.appendChild(head);
+
+    const form = document.createElement('div');
+    form.className='grid g2';
+
+    PRODUCTS.forEach(p=>{
+      const block = document.createElement('div');
+      block.className='grid';
+      block.innerHTML = `
+        <label>${p.toUpperCase()} – cantidad inicial</label>
+        <input type="number" min="0" step="1" id="stk_${p}" value="${wk.stock[p]||0}">
+        <label>${p.toUpperCase()} – costo proveedor por unidad (opcional)</label>
+        <input type="number" min="0" step="1" id="cost_${p}" value="${wk.costs[p]||0}">
+      `;
+      form.appendChild(block);
+    });
+
+    const btns = document.createElement('div');
+    btns.className='row';
+    const saveBtn=document.createElement('button'); saveBtn.className='btn'; saveBtn.textContent='Guardar stock/costos';
+    saveBtn.onclick=()=>{
+      const db2 = ensureDB();
+      const cur = currentWeek(db2);
+      PRODUCTS.forEach(p=>{
+        cur.stock[p] = Number($(`#stk_${p}`).value||0);
+        cur.costs[p] = Number($(`#cost_${p}`).value||0);
+      });
+      save(db2);
+      alert('Stock y costos actualizados para esta semana.');
+      renderResumen(); renderTabs('resumen');
+    }
+    btns.appendChild(saveBtn);
+
+    card.appendChild(form);
+    card.appendChild(btns);
+    v.appendChild(card);
+  }
+
+  // ---------- VISTA: Registrar venta ----------
+  function renderVenta(){
+    const db = ensureDB(); setWeekTag();
+    const v = $('#views'); v.innerHTML='';
+    const card = document.createElement('div'); card.className='card grid';
+    card.innerHTML = `
+      <div style="font-weight:800">Nueva venta</div>
+      <div class="grid g2">
+        <div>
+          <label>Comprador</label>
+          <input id="buyer" placeholder="Nombre o negocio" />
+        </div>
+        <div>
+          <label>Producto</label>
+          <select id="product">${PRODUCTS.map(p=>`<option value="${p}">${p}</option>`).join('')}</select>
+        </div>
+        <div>
+          <label>Cantidad</label>
+          <input type="number" id="qty" min="1" step="1" value="1" />
+        </div>
+        <div>
+          <label>Precio unitario de venta</label>
+          <input type="number" id="unit" min="0" step="1" value="0" />
+        </div>
+        <div>
+          <label>Estado de pago</label>
+          <select id="status">
+            <option value="pagado">Pagado</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="parcial">Parcial</option>
+          </select>
+        </div>
+        <div>
+          <label>Monto pagado (si es parcial)</label>
+          <input type="number" id="paid" min="0" step="1" value="0" />
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn" id="saveSale">Guardar venta</button>
+        <span class="mini" id="calc"></span>
+      </div>
+    `;
+
+    v.appendChild(card);
+
+    function updateCalc(){
+      const q = Number($('#qty').value||0);
+      const u = Number($('#unit').value||0);
+      const tot = q*u;
+      $('#calc').textContent = `Total venta: $${fmt(tot)}`;
+    }
+    updateCalc();
+    ['qty','unit'].forEach(id=>$('#'+id).addEventListener('input',updateCalc));
+
+    $('#saveSale').onclick = ()=>{
+      const buyer = $('#buyer').value.trim();
+      const product = $('#product').value;
+      const qty = Math.max(1, Number($('#qty').value||1));
+      const unit = Math.max(0, Number($('#unit').value||0));
+      const status = $('#status').value;
+      const paid = Math.max(0, Number($('#paid').value||0));
+
+      const db = ensureDB();
+      const wk = currentWeek(db);
+      if((wk.stock[product]||0) < qty){
+        if(!confirm(`No alcanza el stock de ${product}. Stock actual: ${wk.stock[product]||0}. ¿Registrar igual?`)) return;
+      }
+
+      const total = qty*unit;
+      const sale = { id:crypto.randomUUID(), ts:todayISO(), buyer, product, qty, unitPrice:unit, total, status, paid: status==='pagado'? total : (status==='parcial'? Math.min(paid,total):0) };
+      db.sales.unshift(sale);
+      // descuenta del stock de la semana
+      wk.stock[product] = Math.max(0, (wk.stock[product]||0) - qty);
+      save(db);
+      alert('Venta guardada.');
+      renderResumen(); renderTabs('resumen');
+    }
+  }
+
+  // ---------- VISTA: Resumen ----------
+  function renderResumen(){
+    const db = ensureDB(); setWeekTag();
+    const wk = currentWeek(db);
+    const v = $('#views'); v.innerHTML='';
+
+    // Cálculos
+    const now = Date.now();
+    const sales14 = db.sales.filter(s=> (now - new Date(s.ts).getTime()) <= DAYS_14);
+    const totals = {ventas:0,cobrado:0,porcobrar:0};
+    sales14.forEach(s=>{
+      totals.ventas += s.total;
+      totals.cobrado += s.paid||0;
+    });
+    totals.porcobrar = totals.ventas - totals.cobrado;
+
+    let proveedor = 0; PRODUCTS.forEach(p=> proveedor += (wk.costs[p]||0) * (wk.stock[p]||0) );
+    // OJO: proveedor aquí refleja costo de lo que cargaste inicialmente. Para mostrarlo correctamente, sumaremos costos de la carga inicial original.
+    // Guardemos los iniciales si aún no existen
+    if(!wk.initial){ wk.initial = {...wk.stock}; save(db); }
+    proveedor = PRODUCTS.reduce((acc,p)=> acc + (wk.costs[p]||0)*(wk.initial[p]||0), 0);
+
+    const util = totals.cobrado - proveedor;
+
+    const cardTop = document.createElement('div'); cardTop.className='card';
+    cardTop.innerHTML = `
+      <div class="row" style="justify-content:space-between;flex-wrap:wrap">
+        <div>
+          <div class="mini">Ventas (14 días)</div>
+          <div style="font-size:22px;font-weight:800">$${fmt(totals.ventas)}</div>
+        </div>
+        <div>
+          <div class="mini">Cobrado</div>
+          <div style="font-size:22px;font-weight:800" class="ok">$${fmt(totals.cobrado)}</div>
+        </div>
+        <div>
+          <div class="mini">Por cobrar</div>
+          <div style="font-size:22px;font-weight:800" class="warn-t">$${fmt(totals.porcobrar)}</div>
+        </div>
+        <div>
+          <div class="mini">A pagar a proveedor (semana)</div>
+          <div style="font-size:22px;font-weight:800">$${fmt(proveedor)}</div>
+        </div>
+        <div>
+          <div class="mini">Utilidad bruta estimada</div>
+          <div style="font-size:22px;font-weight:800" class="${util>=0?'ok':'danger-t'}">$${fmt(util)}</div>
+        </div>
+      </div>
+    `;
+
+    const cardStock = document.createElement('div'); cardStock.className='card';
+    const rows = PRODUCTS.map(p=>{
+      return `<tr><td style="text-transform:capitalize">${p}</td><td class="right">${fmt(wk.stock[p]||0)}</td><td class="right">$${fmt(wk.costs[p]||0)}</td></tr>`;
+    }).join('');
+    cardStock.innerHTML = `
+      <div style="font-weight:800;margin-bottom:8px">Stock disponible (semana actual)</div>
+      <table>
+        <thead><tr><th>Producto</th><th class="right">Cantidad</th><th class="right">Costo proveedor (unit.)</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+
+    v.appendChild(cardTop);
+    v.appendChild(cardStock);
+  }
+
+  // ---------- VISTA: Historial ----------
+  function renderHistorial(){
+    const db = ensureDB(); setWeekTag();
+    const v = $('#views'); v.innerHTML='';
+
+    const tools = document.createElement('div'); tools.className='card row';
+    tools.innerHTML = `
+      <div class="row" style="gap:12px;align-items:flex-end">
+        <div>
+          <label>Filtrar por producto</label>
+          <select id="fProd"><option value="">Todos</option>${PRODUCTS.map(p=>`<option>${p}</option>`).join('')}</select>
+        </div>
+        <div>
+          <label>Estado</label>
+          <select id="fStatus">
+            <option value="">Todos</option>
+            <option>pagado</option>
+            <option>pendiente</option>
+            <option>parcial</option>
+          </select>
+        </div>
+        <button class="btn secondary" id="applyF">Aplicar</button>
+      </div>
+    `;
+    v.appendChild(tools);
+
+    const listCard = document.createElement('div'); listCard.className='card';
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    thead.innerHTML = `<tr>
+      <th>Fecha</th><th>Comprador</th><th>Producto</th><th class="right">Cant.</th><th class="right">P. Unit.</th><th class="right">Total</th><th>Estado</th><th class="right">Pagado</th><th></th>
+    </tr>`;
+    table.appendChild(thead);
+    const tbody = document.createElement('tbody');
+
+    function paint(){
+      const now = Date.now();
+      let items = db.sales.filter(s=> (now - new Date(s.ts).getTime()) <= DAYS_14);
+      const fp = $('#fProd').value; const fs = $('#fStatus').value;
+      if(fp) items = items.filter(s=> s.product===fp);
+      if(fs) items = items.filter(s=> s.status===fs);
+      tbody.innerHTML='';
+      if(items.length===0){
+        const tr = document.createElement('tr');
+        const td = document.createElement('td'); td.colSpan=9; td.className='muted'; td.textContent='No hay ventas registradas.'; tr.appendChild(td); tbody.appendChild(tr);
+      } else {
+        items.forEach(s=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${new Date(s.ts).toLocaleString('es-CL',{dateStyle:'short', timeStyle:'short'})}</td>
+            <td>${s.buyer||'-'}</td>
+            <td style="text-transform:capitalize">${s.product}</td>
+            <td class="right">${fmt(s.qty)}</td>
+            <td class="right">$${fmt(s.unitPrice)}</td>
+            <td class="right">$${fmt(s.total)}</td>
+            <td>${s.status}</td>
+            <td class="right">$${fmt(s.paid||0)}</td>
+            <td class="right"><button class="btn danger" data-id="${s.id}">Eliminar</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+    }
+
+    paint();
+    table.appendChild(tbody); listCard.appendChild(table); v.appendChild(listCard);
+
+    tools.querySelector('#applyF').onclick = paint;
+
+    listCard.addEventListener('click', (e)=>{
+      const b = e.target.closest('button[data-id]');
+      if(!b) return;
+      const id = b.getAttribute('data-id');
+      if(confirm('¿Eliminar esta venta?')){
+        const db = ensureDB();
+        db.sales = db.sales.filter(s=>s.id!==id);
+        save(db); paint(); renderResumen();
+      }
+    });
+  }
+
+  // ---------- Export CSV ----------
+  function exportCSV(){
+    const db = ensureDB();
+    const rows = [["fecha","comprador","producto","cantidad","precio_unit","total","estado","pagado"]];
+    db.sales.forEach(s=>{
+      rows.push([
+        new Date(s.ts).toLocaleString('es-CL'), s.buyer||'', s.product, s.qty, s.unitPrice, s.total, s.status, s.paid||0
+      ]);
+    });
+    const csv = rows.map(r=> r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='ventas.csv'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),5000);
+  }
+
+  // ---------- Nueva semana ----------
+  function rollWeek(){
+    const db = ensureDB();
+    const cur = currentWeek(db);
+    if(cur && !confirm('Esto creará una nueva semana (no borra ventas). ¿Continuar?')) return;
+    const wk = createWeek();
+    db.weeks.push(wk);
+    save(db);
+    renderTabs('stock'); renderStock(); setWeekTag();
+  }
+
+  // ---------- Borrar todo ----------
+  function wipe(){
+    if(confirm('¿Borrar todos los datos? (No se puede deshacer)')){
+      localStorage.removeItem(DBKEY);
+      location.reload();
+    }
+  }
+
+  // ---------- Eventos globales ----------
+  function init(){
+    ensureDB(); setWeekTag();
+    renderTabs('stock'); renderStock();
+    $('#exportCsv').onclick = exportCSV;
+    $('#rollWeek').onclick = rollWeek;
+    $('#wipeAll').onclick = wipe;
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>
