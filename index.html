@@ -38,8 +38,9 @@
     .danger-t{color:var(--danger)}
     .spacer{height:10px}
     .footer{position:sticky;bottom:0;backdrop-filter:blur(8px);background:rgba(11,15,20,.7);padding:10px;margin:0 -16px}
-    .footer .bar{display:flex;gap:8px}
+    .footer .bar{display:flex;gap:8px;flex-wrap:wrap}
     .help{font-size:12px;color:#9aa9bf}
+    .badge{font-size:11px;padding:4px 8px;border-radius:999px;background:#1f2937}
   </style>
 </head>
 <body>
@@ -53,10 +54,13 @@
     <div class="footer">
       <div class="bar">
         <button class="btn secondary" id="exportCsv">Exportar CSV</button>
+        <button class="btn secondary" id="exportJson">Exportar JSON</button>
+        <label class="btn secondary" for="importJson" style="cursor:pointer">Importar JSON</label>
+        <input id="importJson" type="file" accept="application/json" style="display:none" />
         <button class="btn warn" id="rollWeek">Nueva semana</button>
         <button class="btn danger" id="wipeAll">Borrar todo</button>
       </div>
-      <div class="help" style="margin-top:8px">Los datos se guardan en tu teléfono (localStorage) y se conservan por 14 días.</div>
+      <div class="help" style="margin-top:8px">Los datos se guardan en tu teléfono (localStorage). Para verlos en otro dispositivo, usa <b>Exportar JSON</b> en uno y <b>Importar JSON</b> en el otro.</div>
     </div>
   </div>
 
@@ -75,7 +79,7 @@
   const DEFAULT_COSTS = {mantecoso:0,chanco:0,huevos:0,mantequilla:0};
 
   // ---------- Persistencia ----------
-  const DBKEY = 'qy-app-v1';
+  const DBKEY = 'qy-app-v2';
   const load = ()=>{
     try{ return JSON.parse(localStorage.getItem(DBKEY))||{} }catch{ return {} }
   }
@@ -83,16 +87,12 @@
 
   function ensureDB(){
     const db = load();
-    if(!db.weeks) db.weeks=[]; // {id, startISO, stock:{p:q}, costs:{p:c}}
+    if(!db.weeks) db.weeks=[]; // {id, startISO, stock:{p:q}, costs:{p:c}, initial:{p:q}}
     if(!db.sales) db.sales=[]; // {id, ts, buyer, product, qty, unitPrice, total, status, paid}
+    if(!db.masterCosts) db.masterCosts={...DEFAULT_COSTS}; // costos por defecto persistentes
     pruneOld(db);
-    // Si no hay semana actual, crear
     const cur = currentWeek(db);
-    if(!cur){
-      const wk = createWeek();
-      db.weeks.push(wk);
-      save(db);
-    }
+    if(!cur){ const wk = createWeek(db); db.weeks.push(wk); save(db); }
     return db;
   }
 
@@ -107,10 +107,10 @@
     return db.weeks.find(w => isoDate(w.startISO)===isoDate(start));
   }
 
-  function createWeek(){
+  function createWeek(db){
     const start = startOfWeek();
-    const stock={}; PRODUCTS.forEach(p=>stock[p]=0);
-    return { id:crypto.randomUUID(), startISO:start.toISOString(), stock, costs:{...DEFAULT_COSTS} };
+    const stock={}; const costs={}; PRODUCTS.forEach(p=>{stock[p]=0; costs[p]=(db?.masterCosts?.[p]??0)});
+    return { id:crypto.randomUUID(), startISO:start.toISOString(), stock, costs, initial:{mantecoso:0,chanco:0,huevos:0,mantequilla:0} };
   }
 
   function setWeekTag(){
@@ -124,7 +124,7 @@
   const tabs = [
     {id:'stock', name:'Stock semanal'},
     {id:'venta', name:'Registrar venta'},
-    {id:'resumen', name:'Resumen'},
+    {id:'resumen', name:'Resumen detallado'},
     {id:'hist', name:'Historial'}
   ];
 
@@ -151,7 +151,7 @@
   function renderStock(){
     const db = ensureDB();
     let wk = currentWeek(db);
-    if(!wk){ wk=createWeek(); db.weeks.push(wk); save(db);}    
+    if(!wk){ wk=createWeek(db); db.weeks.push(wk); save(db);}    
     setWeekTag();
 
     const v = $('#views');
@@ -162,7 +162,7 @@
     const head = document.createElement('div');
     head.innerHTML = `<div class="row" style="justify-content:space-between">
       <div style="font-weight:800">Carga inicial de stock (esta semana)</div>
-      <div class="mini">Puedes editar costos para calcular lo que debes al proveedor</div>
+      <div class="mini">Puedes fijar <b>costos por defecto</b> y también los de esta semana.</div>
     </div>`;
     card.appendChild(head);
 
@@ -174,28 +174,47 @@
       block.className='grid';
       block.innerHTML = `
         <label>${p.toUpperCase()} – cantidad inicial</label>
-        <input type="number" min="0" step="1" id="stk_${p}" value="${wk.stock[p]||0}">
-        <label>${p.toUpperCase()} – costo proveedor por unidad (opcional)</label>
+        <input type="number" min="0" step="1" id="stk_${p}" value="${wk.initial[p]||0}">
+        <label>${p.toUpperCase()} – costo proveedor por unidad (semana)</label>
         <input type="number" min="0" step="1" id="cost_${p}" value="${wk.costs[p]||0}">
+        <label class="mini">Costo por defecto: $${fmt(db.masterCosts[p]||0)}</label>
       `;
       form.appendChild(block);
     });
 
     const btns = document.createElement('div');
     btns.className='row';
-    const saveBtn=document.createElement('button'); saveBtn.className='btn'; saveBtn.textContent='Guardar stock/costos';
+
+    const saveBtn=document.createElement('button'); saveBtn.className='btn'; saveBtn.textContent='Guardar stock/costos (semana)';
     saveBtn.onclick=()=>{
       const db2 = ensureDB();
       const cur = currentWeek(db2);
       PRODUCTS.forEach(p=>{
-        cur.stock[p] = Number($(`#stk_${p}`).value||0);
-        cur.costs[p] = Number($(`#cost_${p}`).value||0);
+        const initVal = Number($(`#stk_${p}`).value||0);
+        const costVal = Number($(`#cost_${p}`).value||0);
+        // Si cambia el inicial y aún no se definió el stock, sincronizamos stock disponible al inicial.
+        // Si ya había stock (por ventas previas), solo actualizamos "initial" y no tocamos stock.
+        const wasZero = (cur.initial[p]||0)===0 && (cur.stock[p]||0)===0;
+        cur.initial[p] = initVal;
+        if(wasZero){ cur.stock[p] = initVal; }
+        cur.costs[p] = costVal;
       });
       save(db2);
-      alert('Stock y costos actualizados para esta semana.');
+      alert('Stock inicial y costos de la semana actualizados.');
       renderResumen(); renderTabs('resumen');
     }
+
+    const saveDefaults=document.createElement('button'); saveDefaults.className='btn secondary'; saveDefaults.textContent='Guardar costos por defecto';
+    saveDefaults.onclick=()=>{
+      const db2 = ensureDB();
+      const cur = currentWeek(db2);
+      PRODUCTS.forEach(p=>{ db2.masterCosts[p]=cur.costs[p]||0; });
+      save(db2);
+      alert('Costos por defecto actualizados.');
+    }
+
     btns.appendChild(saveBtn);
+    btns.appendChild(saveDefaults);
 
     card.appendChild(form);
     card.appendChild(btns);
@@ -273,7 +292,6 @@
       const total = qty*unit;
       const sale = { id:crypto.randomUUID(), ts:todayISO(), buyer, product, qty, unitPrice:unit, total, status, paid: status==='pagado'? total : (status==='parcial'? Math.min(paid,total):0) };
       db.sales.unshift(sale);
-      // descuenta del stock de la semana
       wk.stock[product] = Math.max(0, (wk.stock[product]||0) - qty);
       save(db);
       alert('Venta guardada.');
@@ -281,69 +299,104 @@
     }
   }
 
-  // ---------- VISTA: Resumen ----------
+  // ---------- VISTA: Resumen detallado ----------
   function renderResumen(){
     const db = ensureDB(); setWeekTag();
     const wk = currentWeek(db);
     const v = $('#views'); v.innerHTML='';
 
-    // Cálculos
+    // Ventas últimos 14 días
     const now = Date.now();
     const sales14 = db.sales.filter(s=> (now - new Date(s.ts).getTime()) <= DAYS_14);
+
+    // Totales generales
     const totals = {ventas:0,cobrado:0,porcobrar:0};
     sales14.forEach(s=>{
       totals.ventas += s.total;
       totals.cobrado += s.paid||0;
     });
-    totals.porcobrar = totals.ventas - totals.cobrado;
+    totals.porcobrar = Math.max(0, totals.ventas - totals.cobrado);
 
-    let proveedor = 0; PRODUCTS.forEach(p=> proveedor += (wk.costs[p]||0) * (wk.stock[p]||0) );
-    // OJO: proveedor aquí refleja costo de lo que cargaste inicialmente. Para mostrarlo correctamente, sumaremos costos de la carga inicial original.
-    // Guardemos los iniciales si aún no existen
-    if(!wk.initial){ wk.initial = {...wk.stock}; save(db); }
-    proveedor = PRODUCTS.reduce((acc,p)=> acc + (wk.costs[p]||0)*(wk.initial[p]||0), 0);
+    // A pagar a proveedor (por semana): costo * cantidad inicial
+    const pagarProveedor = PRODUCTS.reduce((acc,p)=> acc + (wk.costs[p]||0)*(wk.initial[p]||0), 0);
 
-    const util = totals.cobrado - proveedor;
+    const utilBrutaEst = totals.cobrado - pagarProveedor; // criterio simple
 
     const cardTop = document.createElement('div'); cardTop.className='card';
     cardTop.innerHTML = `
       <div class="row" style="justify-content:space-between;flex-wrap:wrap">
-        <div>
-          <div class="mini">Ventas (14 días)</div>
-          <div style="font-size:22px;font-weight:800">$${fmt(totals.ventas)}</div>
-        </div>
-        <div>
-          <div class="mini">Cobrado</div>
-          <div style="font-size:22px;font-weight:800" class="ok">$${fmt(totals.cobrado)}</div>
-        </div>
-        <div>
-          <div class="mini">Por cobrar</div>
-          <div style="font-size:22px;font-weight:800" class="warn-t">$${fmt(totals.porcobrar)}</div>
-        </div>
-        <div>
-          <div class="mini">A pagar a proveedor (semana)</div>
-          <div style="font-size:22px;font-weight:800">$${fmt(proveedor)}</div>
-        </div>
-        <div>
-          <div class="mini">Utilidad bruta estimada</div>
-          <div style="font-size:22px;font-weight:800" class="${util>=0?'ok':'danger-t'}">$${fmt(util)}</div>
-        </div>
+        <div><div class="mini">Ventas (14 días)</div><div style="font-size:22px;font-weight:800">$${fmt(totals.ventas)}</div></div>
+        <div><div class="mini">Cobrado</div><div style="font-size:22px;font-weight:800" class="ok">$${fmt(totals.cobrado)}</div></div>
+        <div><div class="mini">Por cobrar</div><div style="font-size:22px;font-weight:800" class="warn-t">$${fmt(totals.porcobrar)}</div></div>
+        <div><div class="mini">A pagar a proveedor (semana)</div><div style="font-size:22px;font-weight:800">$${fmt(pagarProveedor)}</div></div>
+        <div><div class="mini">Utilidad bruta estimada</div><div style="font-size:22px;font-weight:800" class="${utilBrutaEst>=0?'ok':'danger-t'}">$${fmt(utilBrutaEst)}</div></div>
       </div>
     `;
 
+    // Detalle por producto (ventas, cobros, por cobrar, stock)
+    const detail = PRODUCTS.map(p=>{
+      const sProd = sales14.filter(s=> s.product===p);
+      const ventas = sProd.reduce((a,b)=>a+b.total,0);
+      const cobrado = sProd.reduce((a,b)=>a+(b.paid||0),0);
+      const porcobrar = Math.max(0, ventas-cobrado);
+      const vendidos = Math.max(0,(wk.initial[p]||0) - (wk.stock[p]||0));
+      const costoCompra = (wk.costs[p]||0) * (wk.initial[p]||0);
+      const costoVendidos = (wk.costs[p]||0) * vendidos; // alternativa
+      const margenSobreVendidos = cobrado - costoVendidos;
+      return {p, ventas, cobrado, porcobrar, vendidos, stock:wk.stock[p]||0, inicial:wk.initial[p]||0, costoCompra, costoVendidos, margenSobreVendidos};
+    });
+
+    const cardDet = document.createElement('div'); cardDet.className='card';
+    cardDet.innerHTML = `
+      <div style="font-weight:800;margin-bottom:8px">Detalle por producto (14 días)</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th class="right">Inicial</th>
+            <th class="right">Vendidos</th>
+            <th class="right">Stock</th>
+            <th class="right">Ventas</th>
+            <th class="right">Cobrado</th>
+            <th class="right">Por cobrar</th>
+            <th class="right">Costo compra</th>
+            <th class="right">Costo vendidos</th>
+            <th class="right">Margen s/ vendidos</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${detail.map(d=>`
+            <tr>
+              <td style="text-transform:capitalize">${d.p}</td>
+              <td class="right">${fmt(d.inicial)}</td>
+              <td class="right">${fmt(d.vendidos)}</td>
+              <td class="right">${fmt(d.stock)}</td>
+              <td class="right">$${fmt(d.ventas)}</td>
+              <td class="right">$${fmt(d.cobrado)}</td>
+              <td class="right">$${fmt(d.porcobrar)}</td>
+              <td class="right">$${fmt(d.costoCompra)}</td>
+              <td class="right">$${fmt(d.costoVendidos)}</td>
+              <td class="right ${d.margenSobreVendidos>=0?'ok':'danger-t'}">$${fmt(d.margenSobreVendidos)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+
+    // Stock actual simple
     const cardStock = document.createElement('div'); cardStock.className='card';
-    const rows = PRODUCTS.map(p=>{
-      return `<tr><td style="text-transform:capitalize">${p}</td><td class="right">${fmt(wk.stock[p]||0)}</td><td class="right">$${fmt(wk.costs[p]||0)}</td></tr>`;
-    }).join('');
     cardStock.innerHTML = `
       <div style="font-weight:800;margin-bottom:8px">Stock disponible (semana actual)</div>
       <table>
         <thead><tr><th>Producto</th><th class="right">Cantidad</th><th class="right">Costo proveedor (unit.)</th></tr></thead>
-        <tbody>${rows}</tbody>
+        <tbody>
+          ${PRODUCTS.map(p=>`<tr><td style="text-transform:capitalize">${p}</td><td class="right">${fmt(wk.stock[p]||0)}</td><td class="right">$${fmt(wk.costs[p]||0)}</td></tr>`).join('')}
+        </tbody>
       </table>
     `;
 
     v.appendChild(cardTop);
+    v.appendChild(cardDet);
     v.appendChild(cardStock);
   }
 
@@ -404,7 +457,10 @@
             <td class="right">$${fmt(s.total)}</td>
             <td>${s.status}</td>
             <td class="right">$${fmt(s.paid||0)}</td>
-            <td class="right"><button class="btn danger" data-id="${s.id}">Eliminar</button></td>
+            <td class="right">
+              <button class="btn secondary" data-mark="${s.id}">Marcar pagado</button>
+              <button class="btn danger" data-id="${s.id}">Eliminar</button>
+            </td>
           `;
           tbody.appendChild(tr);
         });
@@ -417,6 +473,14 @@
     tools.querySelector('#applyF').onclick = paint;
 
     listCard.addEventListener('click', (e)=>{
+      const mark = e.target.closest('button[data-mark]');
+      if(mark){
+        const id = mark.getAttribute('data-mark');
+        const db = ensureDB();
+        const s = db.sales.find(x=>x.id===id);
+        if(s){ s.status='pagado'; s.paid=s.total; save(db); paint(); renderResumen(); }
+        return;
+      }
       const b = e.target.closest('button[data-id]');
       if(!b) return;
       const id = b.getAttribute('data-id');
@@ -437,11 +501,33 @@
         new Date(s.ts).toLocaleString('es-CL'), s.buyer||'', s.product, s.qty, s.unitPrice, s.total, s.status, s.paid||0
       ]);
     });
-    const csv = rows.map(r=> r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(',')).join('\n');
+    const csv = rows.map(r=> r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(',')).join('
+');
     const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href=url; a.download='ventas.csv'; a.click();
     setTimeout(()=>URL.revokeObjectURL(url),5000);
+  }
+
+  // ---------- Export/Import JSON (para traspasar entre dispositivos) ----------
+  function exportJSON(){
+    const db = ensureDB();
+    const blob = new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='datos_stock_ventas.json'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),5000);
+  }
+  function importJSON(file){
+    const reader = new FileReader();
+    reader.onload = e => {
+      try{
+        const data = JSON.parse(e.target.result);
+        localStorage.setItem(DBKEY, JSON.stringify(data));
+        alert('Datos importados correctamente.');
+        location.reload();
+      }catch(err){ alert('Archivo inválido.'); }
+    };
+    reader.readAsText(file);
   }
 
   // ---------- Nueva semana ----------
@@ -449,7 +535,7 @@
     const db = ensureDB();
     const cur = currentWeek(db);
     if(cur && !confirm('Esto creará una nueva semana (no borra ventas). ¿Continuar?')) return;
-    const wk = createWeek();
+    const wk = createWeek(db);
     db.weeks.push(wk);
     save(db);
     renderTabs('stock'); renderStock(); setWeekTag();
@@ -468,6 +554,8 @@
     ensureDB(); setWeekTag();
     renderTabs('stock'); renderStock();
     $('#exportCsv').onclick = exportCSV;
+    $('#exportJson').onclick = exportJSON;
+    $('#importJson').addEventListener('change', (e)=>{ if(e.target.files?.[0]) importJSON(e.target.files[0]); });
     $('#rollWeek').onclick = rollWeek;
     $('#wipeAll').onclick = wipe;
   }
