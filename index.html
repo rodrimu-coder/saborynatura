@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Stock & Ventas · Quesos y Huevos</title>
+  <style>
+    :root{--bg:#0b0f14;--card:#121821;--muted:#94a3b8;--text:#e5e7eb;--accent:#22c55e;--danger:#ef4444;--warn:#f59e0b}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Inter,Arial,sans-serif}
+    .wrap{max-width:860px;margin:0 auto;padding:16px}
+    .app-title{font-weight:800;font-size:20px;letter-spacing:.2px;display:flex;align-items:center;gap:10px}
+    .tabs{display:flex;gap:8px;overflow:auto;padding-bottom:8px;margin-top:12px}
+    .tab{flex:1;white-space:nowrap;background:#19212e;border:1px solid #1f2937;color:#cbd5e1;padding:12px 10px;border-radius:12px;font-weight:600;text-align:center;cursor:pointer}
+    .tab.active{background:#233043;border-color:#2d3b50;color:#fff}
+    .card{background:var(--card);border:1px solid #1f2937;border-radius:16px;padding:14px}
+    .grid{display:grid;gap:12px}
+    .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    @media (max-width:640px){.g2{grid-template-columns:1fr}}
+    label{font-size:13px;color:#cbd5e1}
+    input,select{width:100%;padding:12px;border-radius:12px;border:1px solid #2a3649;background:#0f1520;color:#e5e7eb}
+    input[type="number"]{appearance:textfield}
+    button{appearance:none;border:0;border-radius:12px;padding:12px 14px;font-weight:700;cursor:pointer}
+    .btn{background:#2a8346;color:white}
+    .btn.secondary{background:#334155}
+    .btn.warn{background:var(--warn);color:#0b0f14}
+    .btn.danger{background:var(--danger)}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .mini{font-size:12px;color:var(--muted)}
+    .pill{padding:6px 10px;border-radius:999px;background:#1f2937;color:#cbd5e1;font-size:12px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;border-bottom:1px solid #1f2937;text-align:left;font-size:14px}
+    th{color:#a3b5cc;font-weight:700}
+    .right{text-align:right}
+    .muted{color:var(--muted)}
+    .ok{color:var(--accent)}
+    .warn-t{color:var(--warn)}
+    .danger-t{color:var(--danger)}
+    .footer{position:sticky;bottom:0;backdrop-filter:blur(8px);background:rgba(11,15,20,.7);padding:10px;margin:0 -16px}
+    .footer .bar{display:flex;gap:8px;flex-wrap:wrap}
+    .help{font-size:12px;color:#9aa9bf}
+    .err{background:#3b1f20;border:1px solid #ef4444;color:#fecaca;padding:10px;border-radius:12px;margin:12px 0;display:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="app-title">🧀🥚 Stock & Ventas <span class="pill" id="weekTag"></span></div>
+
+    <div class="tabs" id="tabs"></div>
+    <div id="views"></div>
+    <div id="errorBox" class="err"></div>
+
+    <div class="footer">
+      <div class="bar">
+        <button class="btn secondary" id="exportCsv">Exportar CSV</button>
+        <button class="btn secondary" id="exportJson">Exportar JSON</button>
+        <label class="btn secondary" for="importJson" style="cursor:pointer">Importar JSON</label>
+        <input id="importJson" type="file" accept="application/json" style="display:none" />
+        <button class="btn warn" id="rollWeek">Nueva semana</button>
+        <button class="btn danger" id="wipeAll">Borrar todo</button>
+      </div>
+      <div class="help" style="margin-top:8px">
+        Los datos se guardan <b>solo</b> en este dispositivo (localStorage). Para verlos en otro equipo, usa <b>Exportar JSON</b> e <b>Importar JSON</b>.
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  // ---------- Utilidades ----------
+  function safeUUID(){
+    try{ if(window.crypto && typeof window.crypto.randomUUID==='function'){ return window.crypto.randomUUID(); } }catch(e){}
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});
+  }
+  function showError(msg){
+    var box=document.getElementById('errorBox'); box.style.display='block'; box.textContent='⚠️ '+msg; console.error(msg);
+  }
+  var $=function(sel,p){return (p||document).querySelector(sel);};
+  var fmt=function(n){ return new Intl.NumberFormat('es-CL',{minimumFractionDigits:0}).format(Number(n||0)); };
+  var q2=function(n){ return Math.round((Number(n||0) + Number.EPSILON)*100)/100; }; // redondeo a 2 decimales
+  var todayISO=function(){ return new Date().toISOString(); };
+  var startOfWeek=function(d){ d=d?new Date(d):new Date(); var x=new Date(d); var day=(x.getDay()+6)%7; x.setHours(0,0,0,0); x.setDate(x.getDate()-day); return x; };
+  var isoDate=function(d){ return new Date(d).toISOString().slice(0,10); };
+  var DAYS_14 = 14*24*60*60*1000;
+  var PRODUCTS = ['mantecoso','chanco','huevos','mantequilla'];
+
+  // ---------- Persistencia ----------
+  var DBKEY='qy-app-v5';
+  function load(){ try{ return JSON.parse(localStorage.getItem(DBKEY))||{} }catch(e){ return {}; } }
+  function save(db){ localStorage.setItem(DBKEY, JSON.stringify(db)); }
+  function pruneOld(db){
+    var now=Date.now();
+    db.sales=(db.sales||[]).filter(function(s){ return (now - new Date(s.ts).getTime())<=DAYS_14; });
+    db.weeks=(db.weeks||[]).filter(function(w){ return (now - new Date(w.startISO).getTime())<=DAYS_14; });
+  }
+  function currentWeek(db){
+    var start=startOfWeek();
+    return (db.weeks||[]).find(function(w){ return isoDate(w.startISO)===isoDate(start); });
+  }
+  function createWeek(db){
+    var start=startOfWeek(); var initial={},stock={},costs={};
+    PRODUCTS.forEach(function(p){ initial[p]=0; stock[p]=0; costs[p]=(db&&db.masterCosts&&db.masterCosts[p])||0; });
+    return { id:safeUUID(), startISO:start.toISOString(), initial:initial, stock:stock, costs:costs };
+  }
+  function ensureDB(){
+    var db=load();
+    if(!db.meta) db.meta={version:5, createdAt: todayISO()};
+    if(!db.masterCosts) db.masterCosts={mantecoso:0,chanco:0,huevos:0,mantequilla:0};
+    if(!db.weeks) db.weeks=[];
+    if(!db.sales) db.sales=[];
+    pruneOld(db);
+    if(!currentWeek(db)){ db.weeks.push(createWeek(db)); save(db); }
+    return db;
+  }
+  function setWeekTag(){
+    var db=ensureDB(); var wk=currentWeek(db); if(!wk) return;
+    var end=new Date(new Date(wk.startISO).getTime()+6*86400000);
+    var tag=$('#weekTag'); if(tag) tag.textContent='Semana '+isoDate(wk.startISO)+' a '+isoDate(end);
+  }
+
+  // ---------- UI ----------
+  var tabs=[
+    {id:'stock', name:'Stock semanal'},
+    {id:'venta', name:'Registrar venta'},
+    {id:'resumen', name:'Resumen detallado'},
+    {id:'hist', name:'Historial'}
+  ];
+  function renderTabs(active){ active=active||'stock';
+    var cont=$('#tabs'); cont.innerHTML='';
+    tabs.forEach(function(t){
+      var b=document.createElement('button');
+      b.className='tab'+(t.id===active?' active':'');
+      b.textContent=t.name;
+      b.onclick=function(){ renderTabs(t.id); renderView(t.id); };
+      cont.appendChild(b);
+    });
+  }
+  function renderView(id){
+    if(id==='stock') return renderStock();
+    if(id==='venta') return renderVenta();
+    if(id==='resumen') return renderResumen();
+    if(id==='hist') return renderHistorial();
+  }
+
+  // ---------- STOCK ----------
+  function renderStock(){
+    try{
+      var db=ensureDB(); var wk=currentWeek(db); setWeekTag();
+      var v=$('#views'); v.innerHTML='';
+      var card=document.createElement('div'); card.className='card grid';
+      card.innerHTML='\
+        <div class="row" style="justify-content:space-between">\
+          <div style="font-weight:800">Carga inicial de stock (esta semana)</div>\
+          <div class="mini">Puedes fijar <b>costos por defecto</b> y los de la semana. Soporta decimales (ej: 0.5).</div>\
+        </div>\
+        <div class="grid g2" id="stockForm"></div>\
+        <div class="row">\
+          <button class="btn" id="saveWeek">Guardar stock/costos (semana)</button>\
+          <button class="btn secondary" id="saveDefaults">Guardar costos por defecto</button>\
+        </div>';
+      v.appendChild(card);
+      var form=$('#stockForm');
+      PRODUCTS.forEach(function(p){
+        var block=document.createElement('div'); block.className='grid';
+        block.innerHTML='\
+          <label>'+p.toUpperCase()+' – cantidad inicial</label>\
+          <input type="number" min="0" step="0.01" id="stk_'+p+'" value="'+(wk.initial[p]||0)+'">\
+          <label>'+p.toUpperCase()+' – costo proveedor por unidad (semana)</label>\
+          <input type="number" min="0" step="0.01" id="cost_'+p+'" value="'+(wk.costs[p]||0)+'">\
+          <div class="mini">Costo por defecto actual: $'+fmt(db.masterCosts[p]||0)+'</div>';
+        form.appendChild(block);
+      });
+
+      $('#saveWeek').onclick=function(){
+        var db2=ensureDB(); var cur=currentWeek(db2);
+        PRODUCTS.forEach(function(p){
+          var initVal=q2($('#stk_'+p).value||0);
+          var costVal=q2($('#cost_'+p).value||0);
+          var wasZero=(q2(cur.initial[p]||0)===0) && (q2(cur.stock[p]||0)===0);
+          cur.initial[p]=initVal;
+          if(wasZero){ cur.stock[p]=initVal; }
+          cur.costs[p]=costVal;
+        });
+        save(db2); alert('Stock inicial y costos de la semana actualizados.');
+        renderResumen(); renderTabs('resumen');
+      };
+
+      $('#saveDefaults').onclick=function(){
+        var db2=ensureDB(); var cur=currentWeek(db2);
+        PRODUCTS.forEach(function(p){ db2.masterCosts[p]=q2(cur.costs[p]||0); });
+        save(db2); alert('Costos por defecto actualizados.');
+      };
+    }catch(e){ sh
