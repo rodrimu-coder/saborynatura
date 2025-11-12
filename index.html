@@ -494,5 +494,23 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
 </script>
+  <script>
+  // Muestra errores en la caja roja si algo rompe antes de dibujar tabs
+  window.addEventListener('error', function(e){
+    var box = document.getElementById('errorBox');
+    if (box) { box.style.display = 'block'; box.textContent = 'Error: ' + e.message; }
+  });
+
+  // Si en 300ms no hay pestañas, recarga sin caché (a veces GitHub Pages sirve versión vieja)
+  setTimeout(function(){
+    var tabs = document.getElementById('tabs');
+    if (!tabs || !tabs.children || tabs.children.length === 0) {
+      if (location.search.indexOf('v=') === -1) {
+        location.search = (location.search ? location.search + '&' : '?') + 'v=' + Date.now();
+      }
+    }
+  }, 300);
+</script>
+
 </body>
 </html>
