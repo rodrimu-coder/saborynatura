@@ -1,145 +1,122 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Stock & Ventas · Quesos y Huevos  SaboryNatura</title>
-  <style>
-    :root{--bg:#0b0f14;--card:#121821;--muted:#94a3b8;--text:#e5e7eb;--accent:#22c55e;--danger:#ef4444;--warn:#f59e0b}
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Inter,Arial,sans-serif}
-    .wrap{max-width:960px;margin:0 auto;padding:16px}
-    .app-title{font-weight:800;font-size:20px;letter-spacing:.2px;display:flex;align-items:center;gap:10px}
-    .tabs{display:flex;gap:8px;overflow:auto;padding-bottom:8px;margin-top:12px}
-    .tab{flex:1;white-space:nowrap;background:#19212e;border:1px solid #1f2937;color:#cbd5e1;padding:12px 10px;border-radius:12px;font-weight:600;text-align:center;cursor:pointer}
-    .tab.active{background:#233043;border-color:#2d3b50;color:#fff}
-    .card{background:var(--card);border:1px solid #1f2937;border-radius:16px;padding:14px}
-    .grid{display:grid;gap:12px}
-    .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
-    @media (max-width:640px){.g2{grid-template-columns:1fr}}
-    label{font-size:13px;color:#cbd5e1}
-    input,select{width:100%;padding:12px;border-radius:12px;border:1px solid #2a3649;background:#0f1520;color:#e5e7eb}
-    input[type="number"]{appearance:textfield}
-    button{appearance:none;border:0;border-radius:12px;padding:12px 14px;font-weight:700;cursor:pointer}
-    .btn{background:#2a8346;color:white}
-    .btn.secondary{background:#334155}
-    .btn.warn{background:var(--warn);color:#0b0f14}
-    .btn.danger{background:#ef4444}
-    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .mini{font-size:12px;color:#9aa9bf}
-    .pill{padding:6px 10px;border-radius:999px;background:#1f2937;color:#cbd5e1;font-size:12px}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:10px;border-bottom:1px solid #1f2937;text-align:left;font-size:14px}
-    th{color:#a3b5cc;font-weight:700}
-    .right{text-align:right}
-    .muted{color:#94a3b8}
-    .ok{color:var(--accent)}
-    .warn-t{color:var(--warn)}
-    .danger-t{color:var(--danger)}
-    .footer{position:sticky;bottom:0;backdrop-filter:blur(8px);background:rgba(11,15,20,.7);padding:10px;margin:0 -16px}
-    .footer .bar{display:flex;gap:8px;flex-wrap:wrap}
-    .help{font-size:12px;color:#9aa9bf}
-    .err{background:#3b1f20;border:1px solid #ef4444;color:#fecaca;padding:10px;border-radius:12px;margin:12px 0;display:none}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Stock & Ventas SaboryNatura </title>
+<style>
+  :root{--bg:#0b0f14;--card:#121821;--muted:#94a3b8;--text:#e5e7eb;--accent:#22c55e;--danger:#ef4444;--warn:#f59e0b}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Inter,Arial,sans-serif}
+  .wrap{max-width:960px;margin:0 auto;padding:16px}
+  .app-title{font-weight:800;font-size:20px;letter-spacing:.2px;display:flex;align-items:center;gap:10px}
+  .tabs{display:flex;gap:8px;overflow:auto;padding-bottom:8px;margin-top:12px}
+  .tab{flex:1;white-space:nowrap;background:#19212e;border:1px solid #1f2937;color:#cbd5e1;padding:12px 10px;border-radius:12px;font-weight:600;text-align:center;cursor:pointer}
+  .tab.active{background:#233043;border-color:#2d3b50;color:#fff}
+  .card{background:var(--card);border:1px solid #1f2937;border-radius:16px;padding:14px}
+  .grid{display:grid;gap:12px}
+  .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  @media (max-width:640px){.g2{grid-template-columns:1fr}}
+  label{font-size:13px;color:#cbd5e1}
+  input,select{width:100%;padding:12px;border-radius:12px;border:1px solid #2a3649;background:#0f1520;color:#e5e7eb}
+  input[type="number"]{appearance:textfield}
+  button{appearance:none;border:0;border-radius:12px;padding:12px 14px;font-weight:700;cursor:pointer}
+  .btn{background:#2a8346;color:white}
+  .btn.secondary{background:#334155}
+  .btn.warn{background:var(--warn);color:#0b0f14}
+  .btn.danger{background:#ef4444}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .mini{font-size:12px;color:#9aa9bf}
+  .pill{padding:6px 10px;border-radius:999px;background:#1f2937;color:#cbd5e1;font-size:12px}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:10px;border-bottom:1px solid #1f2937;text-align:left;font-size:14px}
+  th{color:#a3b5cc;font-weight:700}
+  .right{text-align:right}
+  .muted{color:#94a3b8}
+  .ok{color:var(--accent)}
+  .warn-t{color:var(--warn)}
+  .danger-t{color:var(--danger)}
+  .footer{position:sticky;bottom:0;backdrop-filter:blur(8px);background:rgba(11,15,20,.7);padding:10px;margin:0 -16px}
+  .footer .bar{display:flex;gap:8px;flex-wrap:wrap}
+  .help{font-size:12px;color:#9aa9bf}
+  .err{background:#3b1f20;border:1px solid #ef4444;color:#fecaca;padding:10px;border-radius:12px;margin:12px 0;display:none}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="app-title">🧀🥚 Stock & Ventas <span class="pill" id="weekTag"></span></div>
+<div class="wrap">
+  <div class="app-title">🧀🥚 Stock & Ventas <span class="pill" id="weekTag"></span></div>
 
-    <div class="tabs" id="tabs"></div>
-    <div id="views"></div>
-    <div id="errorBox" class="err"></div>
+  <div class="tabs" id="tabs"></div>
+  <div id="views"></div>
+  <div id="errorBox" class="err"></div>
 
-    <div class="footer">
-      <div class="bar">
-        <button class="btn secondary" id="exportCsv">Exportar CSV</button>
-        <button class="btn secondary" id="exportJson">Exportar JSON</button>
-        <label class="btn secondary" for="importJson" style="cursor:pointer">Importar JSON</label>
-        <input id="importJson" type="file" accept="application/json" style="display:none" />
-        <button class="btn warn" id="rollWeek">Nueva semana</button>
-        <button class="btn danger" id="wipeAll">Borrar todo</button>
-      </div>
-      <div class="help" style="margin-top:8px">
-        Los datos se guardan <b>solo</b> en este dispositivo (localStorage). Para verlos en otro equipo, usa <b>Exportar JSON</b> e <b>Importar JSON</b>.
-      </div>
+  <div class="footer">
+    <div class="bar">
+      <button class="btn secondary" id="exportCsv">Exportar CSV</button>
+      <button class="btn secondary" id="exportJson">Exportar JSON</button>
+      <label class="btn secondary" for="importJson" style="cursor:pointer">Importar JSON</label>
+      <input id="importJson" type="file" accept="application/json" style="display:none" />
+      <button class="btn warn" id="rollWeek">Nueva semana</button>
+      <button class="btn danger" id="wipeAll">Borrar todo</button>
+    </div>
+    <div class="help" style="margin-top:8px">
+      Los datos se guardan <b>solo</b> en este dispositivo (localStorage). Para verlos en otro equipo, usa <b>Exportar JSON</b> e <b>Importar JSON</b>.
     </div>
   </div>
+</div>
 
 <script>
 (function(){
-  // ---------- Utilidades ----------
-  function safeUUID(){
-    try{ if(window.crypto && typeof window.crypto.randomUUID==='function'){ return window.crypto.randomUUID(); } }catch(e){}
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});
-  }
-  function showError(msg){
-    var box=document.getElementById('errorBox'); if(!box) return;
-    box.style.display='block'; box.textContent='⚠️ '+msg; console.error(msg);
-  }
-  var $=function(sel,p){return (p||document).querySelector(sel);};
-  var fmt=function(n){return new Intl.NumberFormat('es-CL',{minimumFractionDigits:0}).format(Number(n||0));};
-  var q2=function(n){return Math.round((Number(n||0)+Number.EPSILON)*100)/100;}; // 2 decimales
-  var todayISO=function(){return new Date().toISOString();};
-  var startOfWeek=function(d){d=d?new Date(d):new Date();var x=new Date(d);var day=(x.getDay()+6)%7;x.setHours(0,0,0,0);x.setDate(x.getDate()-day);return x;};
-  var isoDate=function(d){return new Date(d).toISOString().slice(0,10);};
-  var addDays=function(d,days){var x=new Date(d); x.setDate(x.getDate()+days); return x;};
-  var DAYS_14=14*24*60*60*1000;
-  var PRODUCTS=['mantecoso','chanco','huevos','mantequilla'];
+  // ===== Utilidades =====
+  function uuid(){try{if(crypto&&crypto.randomUUID)return crypto.randomUUID();}catch(e){}return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});}
+  const $=(s,p)=> (p||document).querySelector(s);
+  const fmt=n=> new Intl.NumberFormat('es-CL',{minimumFractionDigits:0}).format(Number(n||0));
+  const q2=n=> Math.round((Number(n||0)+Number.EPSILON)*100)/100;
+  const today=()=> new Date().toISOString();
+  const iso=d=> new Date(d).toISOString().slice(0,10);
+  const startOfWeek=(d)=>{d=d?new Date(d):new Date();const x=new Date(d);const day=(x.getDay()+6)%7;x.setHours(0,0,0,0);x.setDate(x.getDate()-day);return x;};
+  const addDays=(d,dd)=>{const x=new Date(d);x.setDate(x.getDate()+dd);return x;};
+  const DAYS14=14*24*60*60*1000;
+  const PRODUCTS=['mantecoso','chanco','huevos','mantequilla'];
 
-  // ---------- Persistencia ----------
-  var DBKEY='qy-app-v8';
-  function load(){try{return JSON.parse(localStorage.getItem(DBKEY))||{}}catch(e){return {};}}
-  function save(db){localStorage.setItem(DBKEY, JSON.stringify(db));}
+  // ===== Persistencia =====
+  const DBKEY='qy-app-v81';
+  const load=()=>{ try{return JSON.parse(localStorage.getItem(DBKEY))||{};}catch(e){return{};} };
+  const save=db=> localStorage.setItem(DBKEY, JSON.stringify(db));
+  function createWeek(db){const start=startOfWeek();const initial={},stock={},costs={};PRODUCTS.forEach(p=>{initial[p]=0;stock[p]=0;costs[p]=(db&&db.masterCosts&&db.masterCosts[p])||0;});return{id:uuid(),startISO:start.toISOString(),initial,stock,costs};}
   function ensureDB(){
-    var db=load();
-    if(!db.meta) db.meta={version:8, createdAt: todayISO()};
+    const db=load();
+    if(!db.meta) db.meta={version:8.1,createdAt:today()};
     if(!db.masterCosts) db.masterCosts={mantecoso:0,chanco:0,huevos:0,mantequilla:0};
     if(!db.weeks) db.weeks=[];
-    if(!db.sales) db.sales=[]; // sale: {id,ts,buyer,product,qty,unitPrice,total,status,paid,delivered}
+    if(!db.sales) db.sales=[];
     if(!currentWeek(db)){db.weeks.push(createWeek(db));save(db);}
     return db;
   }
-  function createWeek(db){
-    var start=startOfWeek();var initial={},stock={},costs={};
-    PRODUCTS.forEach(function(p){initial[p]=0;stock[p]=0;costs[p]=(db&&db.masterCosts&&db.masterCosts[p])||0;});
-    return {id:safeUUID(),startISO=start.toISOString(),initial:initial,stock:stock,costs:costs};
+  const currentWeek=db=> (db.weeks||[]).find(w=> iso(w.startISO)===iso(startOfWeek()));
+  const salesInWeek=(db,w)=> (db.sales||[]).filter(s=>{const t=new Date(s.ts);const a=new Date(w.startISO),b=addDays(a,7);return t>=a&&t<b;});
+  function recomputeWeekStock(db,w){
+    const vend=PRODUCTS.reduce((o,p)=>(o[p]=0,o),{});
+    salesInWeek(db,w).forEach(s=>{vend[s.product]=q2(vend[s.product]+q2(s.qty));});
+    PRODUCTS.forEach(p=>{w.stock[p]=q2(Math.max(0,q2(w.initial[p]||0)-(vend[p]||0)));});
   }
-  function currentWeek(db){
-    var start=startOfWeek(); return (db.weeks||[]).find(function(w){return isoDate(w.startISO)===isoDate(start);});
-  }
-  function salesInWeek(db, week){
-    var start=new Date(week.startISO), end=addDays(start,7);
-    return (db.sales||[]).filter(function(s){var t=new Date(s.ts); return t>=start && t<end;});
-  }
-  function recomputeWeekStock(db, week){
-    // stock = inicial - vendidos de esa semana (por producto)
-    var vendidosByProd = PRODUCTS.reduce(function(o,p){o[p]=0;return o;}, {});
-    salesInWeek(db, week).forEach(function(s){ vendidosByProd[s.product]=q2(vendidosByProd[s.product]+q2(s.qty)); });
-    PRODUCTS.forEach(function(p){
-      week.stock[p]=q2(Math.max(0, q2(week.initial[p]||0) - (vendidosByProd[p]||0)));
-    });
-  }
-  function setWeekTag(){
-    var db=ensureDB(); var wk=currentWeek(db); if(!wk) return;
-    var end=addDays(new Date(wk.startISO),6);
-    var tag=$('#weekTag'); if(tag) tag.textContent='Semana '+isoDate(wk.startISO)+' a '+isoDate(end);
-  }
+  function setWeekTag(){const db=ensureDB();const wk=currentWeek(db);if(!wk) return;const end=addDays(new Date(wk.startISO),6);const tag=$('#weekTag');if(tag) tag.textContent='Semana '+iso(wk.startISO)+' a '+iso(end);}
 
-  // ---------- UI ----------
-  var tabs=[
-    {id:'stock', name:'Stock semanal'},
-    {id:'venta', name:'Registrar venta'},
-    {id:'resumen', name:'Resumen detallado'},
-    {id:'hist', name:'Historial'},
-    {id:'weeks', name:'Semanas'}
+  // ===== Tabs / Views =====
+  const tabs=[
+    {id:'stock',name:'Stock semanal'},
+    {id:'venta',name:'Registrar venta'},
+    {id:'resumen',name:'Resumen detallado'},
+    {id:'hist',name:'Historial'},
+    {id:'weeks',name:'Semanas'}
   ];
-  function renderTabs(active){ active=active||'stock';
-    var cont=$('#tabs'); cont.innerHTML='';
-    tabs.forEach(function(t){
-      var b=document.createElement('button');
+  function renderTabs(active='stock'){
+    const cont=$('#tabs'); cont.innerHTML='';
+    tabs.forEach(t=>{
+      const b=document.createElement('button');
       b.className='tab'+(t.id===active?' active':'');
       b.textContent=t.name;
-      b.onclick=function(){ renderTabs(t.id); renderView(t.id); };
+      b.onclick=()=>{renderTabs(t.id);renderView(t.id);};
       cont.appendChild(b);
     });
   }
@@ -147,370 +124,267 @@
     if(id==='stock') return renderStock();
     if(id==='venta') return renderVenta();
     if(id==='resumen') return renderResumen();
-    if(id==='hist') return renderHistorial();
+    if(id==='hist') return renderHist();
     if(id==='weeks') return renderWeeks();
   }
 
-  // ---------- STOCK ----------
+  // ===== Stock (corrección de inicial) =====
   function renderStock(){
-    var db=ensureDB(); var wk=currentWeek(db); setWeekTag();
-    var v=$('#views'); v.innerHTML='';
-    var card=document.createElement('div'); card.className='card grid';
-    card.innerHTML='\
-      <div class="row" style="justify-content:space-between">\
-        <div style="font-weight:800">Carga/Corrección de stock (semana actual)</div>\
-        <div class="mini">Al guardar, el stock se recalcula como <b>inicial − vendidos</b> de esta semana.</div>\
-      </div>\
-      <div class="grid g2" id="stockForm"></div>\
-      <div class="row">\
-        <button class="btn" id="saveWeek">Guardar stock/costos (recalcular)</button>\
-        <button class="btn secondary" id="saveDefaults">Guardar costos por defecto</button>\
-      </div>';
+    const db=ensureDB(); const wk=currentWeek(db); setWeekTag();
+    const v=$('#views'); v.innerHTML='';
+    const card=document.createElement('div'); card.className='card grid';
+    card.innerHTML=`
+      <div class="row" style="justify-content:space-between">
+        <div style="font-weight:800">Carga/Corrección de stock (semana actual)</div>
+        <div class="mini">Al guardar, el stock = inicial − vendidos de esta semana.</div>
+      </div>
+      <div class="grid g2" id="stockForm"></div>
+      <div class="row">
+        <button class="btn" id="saveWeek">Guardar stock/costos (recalcular)</button>
+        <button class="btn secondary" id="saveDefaults">Guardar costos por defecto</button>
+      </div>`;
     v.appendChild(card);
-    var form=$('#stockForm');
-    PRODUCTS.forEach(function(p){
-      var block=document.createElement('div'); block.className='grid';
-      block.innerHTML='\
-        <label>'+p.toUpperCase()+' – inicial (decimales OK)</label>\
-        <input type="number" min="0" step="0.01" id="stk_'+p+'" value="'+(wk.initial[p]||0)+'">\
-        <label>'+p.toUpperCase()+' – costo proveedor (unit.)</label>\
-        <input type="number" min="0" step="0.01" id="cost_'+p+'" value="'+(wk.costs[p]||0)+'">\
-        <div class="mini">Stock actual: '+q2(wk.stock[p]||0).toFixed(2)+' · Costo por defecto: $'+fmt(db.masterCosts[p]||0)+'</div>';
-      form.appendChild(block);
+    const form=$('#stockForm');
+    PRODUCTS.forEach(p=>{
+      const blk=document.createElement('div'); blk.className='grid';
+      blk.innerHTML=`
+        <label>${p.toUpperCase()} – inicial (decimales OK)</label>
+        <input type="number" min="0" step="0.01" id="stk_${p}" value="${wk.initial[p]||0}">
+        <label>${p.toUpperCase()} – costo proveedor (unit.)</label>
+        <input type="number" min="0" step="0.01" id="cost_${p}" value="${wk.costs[p]||0}">
+        <div class="mini">Stock actual: ${q2(wk.stock[p]||0).toFixed(2)} · Costo por defecto: $${fmt(db.masterCosts[p]||0)}</div>`;
+      form.appendChild(blk);
     });
-    $('#saveWeek').onclick=function(){
-      var db2=ensureDB(); var cur=currentWeek(db2);
-      PRODUCTS.forEach(function(p){
-        cur.initial[p]=q2($('#stk_'+p).value||0);
-        cur.costs[p]=q2($('#cost_'+p).value||0);
-      });
-      recomputeWeekStock(db2, cur);
-      save(db2); alert('Inicial/costos actualizados y stock recalculado.');
-      renderResumen(); renderTabs('resumen');
+    $('#saveWeek').onclick=()=>{
+      const db2=ensureDB(); const cur=currentWeek(db2);
+      PRODUCTS.forEach(p=>{cur.initial[p]=q2($('#stk_'+p).value||0); cur.costs[p]=q2($('#cost_'+p).value||0);});
+      recomputeWeekStock(db2,cur); save(db2); alert('Inicial/costos actualizados y stock recalculado.');
+      renderTabs('resumen'); renderResumen();
     };
-    $('#saveDefaults').onclick=function(){
-      var db2=ensureDB(); var cur=currentWeek(db2);
-      PRODUCTS.forEach(function(p){db2.masterCosts[p]=q2(cur.costs[p]||0);});
+    $('#saveDefaults').onclick=()=>{
+      const db2=ensureDB(); const cur=currentWeek(db2);
+      PRODUCTS.forEach(p=> db2.masterCosts[p]=q2(cur.costs[p]||0));
       save(db2); alert('Costos por defecto actualizados.');
     };
   }
 
-  // ---------- VENTAS ----------
+  // ===== Registrar venta =====
   function renderVenta(){
     ensureDB(); setWeekTag();
-    var v=$('#views'); v.innerHTML='';
-    var card=document.createElement('div'); card.className='card grid';
-    card.innerHTML='\
-      <div style="font-weight:800">Nueva venta</div>\
-      <div class="grid g2">\
-        <div><label>Comprador</label><input id="buyer" placeholder="Nombre o negocio" /></div>\
-        <div><label>Producto</label><select id="product">'+PRODUCTS.map(function(p){return '<option value="'+p+'">'+p+'</option>';}).join('')+'</select></div>\
-        <div><label>Cantidad</label><input type="number" id="qty" min="0.01" step="0.01" value="0.50" /></div>\
-        <div><label>Total venta</label><input type="number" id="total" min="0" step="0.01" value="0" /></div>\
-        <div><label>Estado de pago</label><select id="status"><option value="pagado">Pagado</option><option value="pendiente">Pendiente</option><option value="parcial">Parcial</option></select></div>\
-        <div><label>Monto pagado (si es parcial)</label><input type="number" id="paid" min="0" step="0.01" value="0" /></div>\
-        <div><label>Entregado</label><select id="delivered"><option value="true" selected>Sí</option><option value="false">No</option></select></div>\
-      </div>\
-      <div class="row mini" id="calc"></div>\
-      <div class="row"><button class="btn" id="saveSale">Guardar venta</button></div>';
+    const v=$('#views'); v.innerHTML='';
+    const card=document.createElement('div'); card.className='card grid';
+    card.innerHTML=`
+      <div style="font-weight:800">Nueva venta</div>
+      <div class="grid g2">
+        <div><label>Comprador</label><input id="buyer" placeholder="Nombre o negocio"></div>
+        <div><label>Producto</label><select id="product">${PRODUCTS.map(p=>`<option>${p}</option>`).join('')}</select></div>
+        <div><label>Cantidad</label><input type="number" id="qty" min="0.01" step="0.01" value="0.50"></div>
+        <div><label>Total venta</label><input type="number" id="total" min="0" step="0.01" value="0"></div>
+        <div><label>Estado de pago</label><select id="status"><option>pagado</option><option>pendiente</option><option>parcial</option></select></div>
+        <div><label>Monto pagado (si es parcial)</label><input type="number" id="paid" min="0" step="0.01" value="0"></div>
+        <div><label>Entregado</label><select id="delivered"><option value="true" selected>Sí</option><option value="false">No</option></select></div>
+      </div>
+      <div class="row mini" id="calc"></div>
+      <div class="row"><button class="btn" id="saveSale">Guardar venta</button></div>`;
     v.appendChild(card);
+    function calc(){const q=q2($('#qty').value||0),t=q2($('#total').value||0),u=q>0?q2(t/q):0; $('#calc').textContent='Precio unitario: $'+fmt(u)+' · Total: $'+fmt(t);}
+    calc(); $('#qty').addEventListener('input',calc); $('#total').addEventListener('input',calc);
 
-    function updateCalc(){
-      var q=q2($('#qty').value||0), t=q2($('#total').value||0);
-      var u = q>0 ? q2(t/q) : 0;
-      $('#calc').textContent = 'Precio unitario: $'+fmt(u)+' · Total: $'+fmt(t);
-    }
-    updateCalc();
-    $('#qty').addEventListener('input',updateCalc);
-    $('#total').addEventListener('input',updateCalc);
+    $('#saveSale').onclick=()=>{
+      const buyer=($('#buyer').value||'').trim();
+      const product=$('#product').value;
+      let qty=q2($('#qty').value||0.01); if(qty<0.01) qty=0.01;
+      const total=q2($('#total').value||0);
+      const unit=qty>0?q2(total/qty):0;
+      const status=$('#status').value;
+      let paid=q2($('#paid').value||0);
+      const delivered=($('#delivered').value==='true');
 
-    $('#saveSale').onclick=function(){
-      var buyer=($('#buyer').value||'').trim();
-      var product=$('#product').value;
-      var qty=q2($('#qty').value||0.01); if(qty<0.01) qty=0.01;
-      var total=q2($('#total').value||0);
-      var unit = qty>0 ? q2(total/qty) : 0;
-      var status=$('#status').value;
-      var paid=q2($('#paid').value||0);
-      var delivered = ($('#delivered').value==='true');
-
-      var db=ensureDB(); var wk=currentWeek(db);
-      // advertencia de stock bajo
+      const db=ensureDB(); const wk=currentWeek(db);
       if(q2(wk.stock[product]||0)<qty){ if(!confirm('No alcanza el stock de '+product+'. Stock actual: '+q2(wk.stock[product]||0)+'. ¿Registrar igual?')) return; }
-
-      var paidFinal=(status==='pagado')? total : (status==='parcial'? Math.min(paid,total):0); paidFinal=q2(paidFinal);
-      var sale={ id:safeUUID(), ts:todayISO(), buyer:buyer, product:product, qty:qty, unitPrice:unit, total:total, status:status, paid:paidFinal, delivered:delivered };
-      db.sales.unshift(sale);
-
-      // Recalcular stock de la semana actual (a prueba de errores)
-      recomputeWeekStock(db, wk);
-      save(db); alert('Venta guardada.');
-      renderResumen(); renderTabs('resumen');
+      const paidFinal=(status==='pagado')? total : (status==='parcial'? Math.min(paid,total):0);
+      db.sales.unshift({id:uuid(),ts:today(),buyer,product,qty,unitPrice:unit,total,status,paid:q2(paidFinal),delivered});
+      recomputeWeekStock(db,wk); save(db); alert('Venta guardada.');
+      renderTabs('resumen'); renderResumen();
     };
   }
 
-  // ---------- RESUMEN ----------
+  // ===== Resumen =====
   function renderResumen(){
-    var db=ensureDB(); var wk=currentWeek(db); setWeekTag();
-    var v=$('#views'); v.innerHTML='';
-    // asegurar stock consistente antes de mostrar
-    recomputeWeekStock(db, wk); save(db);
+    const db=ensureDB(); const wk=currentWeek(db); setWeekTag(); recomputeWeekStock(db,wk); save(db);
+    const v=$('#views'); v.innerHTML='';
+    const now=Date.now();
+    const s14=db.sales.filter(s=> (now-new Date(s.ts).getTime())<=DAYS14);
+    const totals=s14.reduce((a,s)=> (a.ventas+=s.total, a.cobrado+=(s.paid||0), a), {ventas:0,cobrado:0});
+    totals.ventas=q2(totals.ventas); totals.cobrado=q2(totals.cobrado); totals.porcobrar=q2(Math.max(0,totals.ventas-totals.cobrado));
+    const pagarProv=PRODUCTS.reduce((acc,p)=> q2(acc+q2(wk.costs[p]||0)*q2(wk.initial[p]||0)),0);
+    const utilCaja=q2(totals.cobrado-pagarProv);
 
-    var now=Date.now();
-    var sales14=db.sales.filter(function(s){return (now-new Date(s.ts).getTime())<=DAYS_14;});
-    var totals=sales14.reduce(function(a,s){a.ventas+=s.total;a.cobrado+=(s.paid||0);return a;},{ventas:0,cobrado:0});
-    totals.ventas=q2(totals.ventas); totals.cobrado=q2(totals.cobrado); totals.porcobrar=q2(Math.max(0, totals.ventas-totals.cobrado));
-    var pagarProveedor=PRODUCTS.reduce(function(acc,p){return q2(acc + q2(wk.costs[p]||0)*q2(wk.initial[p]||0));},0);
-    var utilBrutaEst=q2(totals.cobrado - pagarProveedor);
+    const top=document.createElement('div'); top.className='card';
+    top.innerHTML=`
+      <div class="row" style="justify-content:space-between;flex-wrap:wrap">
+        <div><div class="mini">Ventas (14 días)</div><div style="font-size:22px;font-weight:800">$${fmt(totals.ventas)}</div></div>
+        <div><div class="mini">Cobrado</div><div style="font-size:22px;font-weight:800" class="ok">$${fmt(totals.cobrado)}</div></div>
+        <div><div class="mini">Por cobrar</div><div style="font-size:22px;font-weight:800" class="warn-t">$${fmt(totals.porcobrar)}</div></div>
+        <div><div class="mini">A pagar a proveedor (semana)</div><div style="font-size:22px;font-weight:800">$${fmt(pagarProv)}</div></div>
+        <div><div class="mini">Utilidad bruta estimada (caja)</div><div style="font-size:22px;font-weight:800" class="${utilCaja>=0?'ok':'danger-t'}">$${fmt(utilCaja)}</div></div>
+      </div>`;
+    v.appendChild(top);
 
-    var cardTop=document.createElement('div'); cardTop.className='card';
-    cardTop.innerHTML='\
-      <div class="row" style="justify-content:space-between;flex-wrap:wrap">\
-        <div><div class="mini">Ventas (14 días)</div><div style="font-size:22px;font-weight:800">$'+fmt(totals.ventas)+'</div></div>\
-        <div><div class="mini">Cobrado</div><div style="font-size:22px;font-weight:800" class="ok">$'+fmt(totals.cobrado)+'</div></div>\
-        <div><div class="mini">Por cobrar</div><div style="font-size:22px;font-weight:800" class="warn-t">$'+fmt(totals.porcobrar)+'</div></div>\
-        <div><div class="mini">A pagar a proveedor (semana)</div><div style="font-size:22px;font-weight:800">$'+fmt(pagarProveedor)+'</div></div>\
-        <div><div class="mini">Utilidad bruta estimada (caja)</div><div style="font-size:22px;font-weight:800" class="'+(utilBrutaEst>=0?'ok':'danger-t')+'">$'+fmt(utilBrutaEst)+'</div></div>\
-      </div>';
-    v.appendChild(cardTop);
-
-    var detail=PRODUCTS.map(function(p){
-      var ventas=q2(sales14.filter(function(s){return s.product===p;}).reduce(function(a,b){return a+b.total;},0));
-      var cobrado=q2(sales14.filter(function(s){return s.product===p;}).reduce(function(a,b){return a+(b.paid||0);},0));
-      var porcobrar=q2(Math.max(0,ventas-cobrado));
-      var vendidos=q2(Math.max(0, q2(wk.initial[p]||0)-q2(wk.stock[p]||0)));
-      var costoCompra=q2(q2(wk.costs[p]||0)*q2(wk.initial[p]||0));
-      var costoVendidos=q2(q2(wk.costs[p]||0)*vendidos);
-      var margenVendidos=q2(cobrado - costoVendidos);
-      return {p:p, ventas:ventas, cobrado:cobrado, porcobrar:porcobrar, vendidos:vendidos, stock:q2(wk.stock[p]||0), inicial:q2(wk.initial[p]||0), costoCompra:costoCompra, costoVendidos:costoVendidos, margenVendidos:margenVendidos};
+    const detail=PRODUCTS.map(p=>{
+      const ventas=q2(s14.filter(s=>s.product===p).reduce((a,b)=>a+b.total,0));
+      const cobrado=q2(s14.filter(s=>s.product===p).reduce((a,b)=>a+(b.paid||0),0));
+      const porcobrar=q2(Math.max(0,ventas-cobrado));
+      const vendidos=q2(Math.max(0,q2(wk.initial[p]||0)-q2(wk.stock[p]||0)));
+      const costoCompra=q2(q2(wk.costs[p]||0)*q2(wk.initial[p]||0));
+      const costoVendidos=q2(q2(wk.costs[p]||0)*vendidos);
+      const margen=q2(cobrado-costoVendidos);
+      return {p,ventas,cobrado,porcobrar,vendidos,stock:q2(wk.stock[p]||0),inicial:q2(wk.initial[p]||0),costoCompra,costoVendidos,margen};
     });
 
-    var cardDet=document.createElement('div'); cardDet.className='card';
-    cardDet.innerHTML='\
-      <div style="font-weight:800;margin-bottom:8px">Detalle por producto (últimos 14 días)</div>\
-      <table><thead><tr>\
-        <th>Producto</th><th class="right">Inicial</th><th class="right">Vendidos</th><th class="right">Stock</th>\
-        <th class="right">Ventas</th><th class="right">Cobrado</th><th class="right">Por cobrar</th>\
-        <th class="right">Costo compra</th><th class="right">Costo vendidos</th><th class="right">Margen s/ vendidos</th>\
-      </tr></thead><tbody>'+
-      detail.map(function(d){
-        return '<tr>\
-          <td style="text-transform:capitalize">'+d.p+'</td>\
-          <td class="right">'+d.inicial.toFixed(2)+'</td>\
-          <td class="right">'+d.vendidos.toFixed(2)+'</td>\
-          <td class="right">'+d.stock.toFixed(2)+'</td>\
-          <td class="right">$'+fmt(d.ventas)+'</td>\
-          <td class="right">$'+fmt(d.cobrado)+'</td>\
-          <td class="right">$'+fmt(d.porcobrar)+'</td>\
-          <td class="right">$'+fmt(d.costoCompra)+'</td>\
-          <td class="right">$'+fmt(d.costoVendidos)+'</td>\
-          <td class="right '+(d.margenVendidos>=0?'ok':'danger-t')+'">$'+fmt(d.margenVendidos)+'</td>\
-        </tr>';
-      }).join('')+'</tbody></table>';
-    v.appendChild(cardDet);
+    const det=document.createElement('div'); det.className='card';
+    det.innerHTML=`
+      <div style="font-weight:800;margin-bottom:8px">Detalle por producto (últimos 14 días)</div>
+      <table><thead><tr>
+        <th>Producto</th><th class="right">Inicial</th><th class="right">Vendidos</th><th class="right">Stock</th>
+        <th class="right">Ventas</th><th class="right">Cobrado</th><th class="right">Por cobrar</th>
+        <th class="right">Costo compra</th><th class="right">Costo vendidos</th><th class="right">Margen s/ vendidos</th>
+      </tr></thead><tbody>
+      ${detail.map(d=>`
+        <tr>
+          <td style="text-transform:capitalize">${d.p}</td>
+          <td class="right">${d.inicial.toFixed(2)}</td>
+          <td class="right">${d.vendidos.toFixed(2)}</td>
+          <td class="right">${d.stock.toFixed(2)}</td>
+          <td class="right">$${fmt(d.ventas)}</td>
+          <td class="right">$${fmt(d.cobrado)}</td>
+          <td class="right">$${fmt(d.porcobrar)}</td>
+          <td class="right">$${fmt(d.costoCompra)}</td>
+          <td class="right">$${fmt(d.costoVendidos)}</td>
+          <td class="right ${d.margen>=0?'ok':'danger-t'}">$${fmt(d.margen)}</td>
+        </tr>`).join('')}
+      </tbody></table>`;
+    v.appendChild(det);
   }
 
-  // ---------- HISTORIAL (Editar + recalcular stock) ----------
-  function renderHistorial(){
-    var db=ensureDB(); setWeekTag();
-    var v=$('#views'); v.innerHTML='';
-    var tools=document.createElement('div'); tools.className='card row';
-    tools.innerHTML='\
-      <div class="row" style="gap:12px;align-items:flex-end">\
-        <div><label>Filtrar por producto</label><select id="fProd"><option value="">Todos</option>'+PRODUCTS.map(function(p){return '<option>'+p+'</option>';}).join('')+'</select></div>\
-        <div><label>Estado</label><select id="fStatus"><option value="">Todos</option><option>pagado</option><option>pendiente</option><option>parcial</option></select></div>\
-        <div><label>Entregado</label><select id="fDeliv"><option value="">Todos</option><option value="true">Sí</option><option value="false">No</option></select></div>\
-        <button class="btn secondary" id="applyF">Aplicar</button>\
-      </div>';
+  // ===== Historial (editar/entregado) =====
+  function renderHist(){
+    const db=ensureDB(); setWeekTag();
+    const v=$('#views'); v.innerHTML='';
+    const tools=document.createElement('div'); tools.className='card row';
+    tools.innerHTML=`
+      <div class="row" style="gap:12px;align-items:flex-end">
+        <div><label>Filtrar por producto</label><select id="fProd"><option value="">Todos</option>${PRODUCTS.map(p=>`<option>${p}</option>`).join('')}</select></div>
+        <div><label>Estado</label><select id="fStatus"><option value="">Todos</option><option>pagado</option><option>pendiente</option><option>parcial</option></select></div>
+        <div><label>Entregado</label><select id="fDeliv"><option value="">Todos</option><option value="true">Sí</option><option value="false">No</option></select></div>
+        <button class="btn secondary" id="applyF">Aplicar</button>
+      </div>`;
     v.appendChild(tools);
 
-    var listCard=document.createElement('div'); listCard.className='card';
-    var table=document.createElement('table');
-    var thead=document.createElement('thead');
-    thead.innerHTML='<tr><th>Fecha</th><th>Comprador</th><th>Producto</th><th class="right">Cant.</th><th class="right">Total</th><th>Estado</th><th>Entregado</th><th class="right">Pagado</th><th></th></tr>';
-    table.appendChild(thead);
-    var tbody=document.createElement('tbody');
+    const card=document.createElement('div'); card.className='card';
+    const table=document.createElement('table');
+    table.innerHTML=`<thead><tr>
+      <th>Fecha</th><th>Comprador</th><th>Producto</th><th class="right">Cant.</th><th class="right">Total</th>
+      <th>Estado</th><th>Entregado</th><th class="right">Pagado</th><th></th>
+    </tr></thead><tbody></tbody>`;
+    const tbody=table.querySelector('tbody'); card.appendChild(table); v.appendChild(card);
 
     function paint(){
-      var now=Date.now();
-      var items=db.sales.filter(function(s){return (now-new Date(s.ts).getTime())<=DAYS_14;});
-      var fp=$('#fProd').value; var fs=$('#fStatus').value; var fd=$('#fDeliv').value;
-      if(fp) items=items.filter(function(s){return s.product===fp;});
-      if(fs) items=items.filter(function(s){return s.status===fs;});
-      if(fd) items=items.filter(function(s){return String(!!s.delivered)===fd;});
-      tbody.innerHTML='';
-      if(items.length===0){
-        var tr=document.createElement('tr'); var td=document.createElement('td'); td.colSpan=9; td.className='muted'; td.textContent='No hay ventas registradas.'; tr.appendChild(td); tbody.appendChild(tr);
-      }else{
-        items.forEach(function(s){
-          var tr=document.createElement('tr');
-          tr.innerHTML='\
-            <td>'+new Date(s.ts).toLocaleString('es-CL',{dateStyle:'short', timeStyle:'short'})+'</td>\
-            <td>'+(s.buyer||'-')+'</td>\
-            <td style="text-transform:capitalize">'+s.product+'</td>\
-            <td class="right">'+q2(s.qty).toFixed(2)+'</td>\
-            <td class="right">$'+fmt(q2(s.total))+'</td>\
-            <td>'+s.status+'</td>\
-            <td><input type="checkbox" data-deliv="'+s.id+'" '+(s.delivered?'checked':'')+'></td>\
-            <td class="right">$'+fmt(q2(s.paid||0))+'</td>\
-            <td class="right">\
-              <button class="btn secondary" data-edit="'+s.id+'">✏️ Editar</button> \
-              <button class="btn secondary" data-mark="'+s.id+'">Marcar pagado</button> \
-              <button class="btn danger" data-id="'+s.id+'">Eliminar</button></td>';
-          tbody.appendChild(tr);
-        });
-      }
+      const now=Date.now(); let items=db.sales.filter(s=> (now-new Date(s.ts).getTime())<=DAYS14);
+      const fp=$('#fProd').value, fs=$('#fStatus').value, fd=$('#fDeliv').value;
+      if(fp) items=items.filter(s=>s.product===fp);
+      if(fs) items=items.filter(s=>s.status===fs);
+      if(fd) items=items.filter(s=> String(!!s.delivered)===fd);
+      tbody.innerHTML= items.length? items.map(s=>`
+        <tr>
+          <td>${new Date(s.ts).toLocaleString('es-CL',{dateStyle:'short',timeStyle:'short'})}</td>
+          <td>${s.buyer||'-'}</td>
+          <td style="text-transform:capitalize">${s.product}</td>
+          <td class="right">${q2(s.qty).toFixed(2)}</td>
+          <td class="right">$${fmt(q2(s.total))}</td>
+          <td>${s.status}</td>
+          <td><input type="checkbox" data-deliv="${s.id}" ${s.delivered?'checked':''}></td>
+          <td class="right">$${fmt(q2(s.paid||0))}</td>
+          <td class="right">
+            <button class="btn secondary" data-edit="${s.id}">✏️ Editar</button>
+            <button class="btn secondary" data-mark="${s.id}">Marcar pagado</button>
+            <button class="btn danger" data-id="${s.id}">Eliminar</button>
+          </td>
+        </tr>`).join('') : `<tr><td class="muted" colspan="9">No hay ventas registradas.</td></tr>`;
     }
-    paint();
-    table.appendChild(tbody); listCard.appendChild(table); v.appendChild(listCard);
+    paint(); $('#applyF').onclick=paint;
 
-    $('#applyF').onclick=paint;
-
-    listCard.addEventListener('change',function(e){
-      var cb=e.target.closest && e.target.closest('input[type="checkbox"][data-deliv]');
-      if(cb){
-        var id=cb.getAttribute('data-deliv'); var s=db.sales.find(function(x){return x.id===id;}); if(s){ s.delivered=cb.checked; }
-        recomputeWeekStock(db, currentWeek(db)); save(db); paint(); renderResumen();
-      }
+    card.addEventListener('change',e=>{
+      const cb=e.target.closest('input[type="checkbox"][data-deliv]'); if(!cb) return;
+      const id=cb.getAttribute('data-deliv'); const s=db.sales.find(x=>x.id===id); if(!s) return;
+      s.delivered=cb.checked; recomputeWeekStock(db,currentWeek(db)); save(db); paint(); renderResumen();
     });
-
-    listCard.addEventListener('click',function(e){
-      var el;
-
-      // Editar
-      el=e.target.closest && e.target.closest('button[data-edit]');
+    card.addEventListener('click',e=>{
+      let el=e.target.closest('button[data-edit]');
       if(el){
-        var id=el.getAttribute('data-edit'); var s=db.sales.find(function(x){return x.id===id;}); if(!s) return;
-        // prompts rápidos (compatibles con móvil)
-        var buyer = prompt('Comprador', s.buyer||''); if(buyer===null) return;
-        var product = prompt('Producto (mantecoso/chanco/huevos/mantequilla)', s.product); if(product===null) return; product=product.trim().toLowerCase();
+        const id=el.getAttribute('data-edit'); const s=db.sales.find(x=>x.id===id); if(!s) return;
+        const buyer=prompt('Comprador', s.buyer||''); if(buyer===null) return;
+        let product=prompt('Producto (mantecoso/chanco/huevos/mantequilla)', s.product); if(product===null) return; product=product.trim().toLowerCase();
         if(!PRODUCTS.includes(product)){ alert('Producto inválido.'); return; }
-        var qty = parseFloat(prompt('Cantidad', String(q2(s.qty)))); if(!(qty>0)){ alert('Cantidad inválida.'); return; }
-        var total = parseFloat(prompt('Total $', String(q2(s.total)))); if(!(total>=0)){ alert('Total inválido.'); return; }
-        var status = prompt('Estado (pagado/pendiente/parcial)', s.status||'pendiente'); if(status===null) return;
-        status = ['pagado','pendiente','parcial'].includes(status)? status : 'pendiente';
-        var paid = parseFloat(prompt('Pagado $ (si es parcial)', String(q2(s.paid||0)))); if(isNaN(paid)) paid=0;
-        var delivered = prompt('Entregado (si/no)', (s.delivered?'si':'no')); delivered = (String(delivered).toLowerCase().trim()==='si');
-
-        s.buyer=buyer; s.product=product; s.qty=q2(qty); s.total=q2(total);
-        s.unitPrice = s.qty>0 ? q2(s.total/s.qty) : 0;
-        s.status=status; s.paid = (status==='pagado')? s.total : (status==='parcial'? q2(Math.min(paid,s.total)):0);
-        s.delivered=delivered;
-
-        // Recalcular stock de la semana (por si cambió producto/cantidad)
-        recomputeWeekStock(db, currentWeek(db));
-        save(db); paint(); renderResumen();
-        return;
+        const qty=parseFloat(prompt('Cantidad', String(q2(s.qty)))); if(!(qty>0)){ alert('Cantidad inválida.'); return; }
+        const total=parseFloat(prompt('Total $', String(q2(s.total)))); if(!(total>=0)){ alert('Total inválido.'); return; }
+        let status=prompt('Estado (pagado/pendiente/parcial)', s.status||'pendiente'); if(status===null) return;
+        status=['pagado','pendiente','parcial'].includes(status)?status:'pendiente';
+        let paid=parseFloat(prompt('Pagado $ (si es parcial)', String(q2(s.paid||0)))); if(isNaN(paid)) paid=0;
+        const delivered=String(prompt('Entregado (si/no)', (s.delivered?'si':'no'))).toLowerCase().trim()==='si';
+        s.buyer=buyer; s.product=product; s.qty=q2(qty); s.total=q2(total); s.unitPrice=s.qty>0?q2(s.total/s.qty):0;
+        s.status=status; s.paid=(status==='pagado')?s.total:(status==='parcial'? q2(Math.min(paid,s.total)):0); s.delivered=delivered;
+        recomputeWeekStock(db,currentWeek(db)); save(db); paint(); renderResumen(); return;
       }
-
-      // Marcar pagado
-      el=e.target.closest && e.target.closest('button[data-mark]');
-      if(el){
-        var id=el.getAttribute('data-mark'); var s=db.sales.find(function(x){return x.id===id;}); if(s){ s.status='pagado'; s.paid=q2(s.total); }
-        recomputeWeekStock(db, currentWeek(db)); save(db); paint(); renderResumen(); return;
-      }
-
-      // Eliminar
-      el=e.target.closest && e.target.closest('button[data-id]');
-      if(el){
-        var id2=el.getAttribute('data-id');
-        if(confirm('¿Eliminar esta venta?')){
-          db.sales=db.sales.filter(function(s){return s.id!==id2;});
-          // Recalcular stock para no dejar "rastro" en stock
-          recomputeWeekStock(db, currentWeek(db));
-          save(db); paint(); renderResumen();
-        }
-      }
+      el=e.target.closest('button[data-mark]');
+      if(el){const id=el.getAttribute('data-mark'); const s=db.sales.find(x=>x.id===id); if(s){s.status='pagado'; s.paid=q2(s.total);} recomputeWeekStock(db,currentWeek(db)); save(db); paint(); renderResumen(); return;}
+      el=e.target.closest('button[data-id]');
+      if(el){const id=el.getAttribute('data-id'); if(confirm('¿Eliminar esta venta?')){db.sales=db.sales.filter(s=>s.id!==id); recomputeWeekStock(db,currentWeek(db)); save(db); paint(); renderResumen();}}
     });
   }
 
-  // ---------- SEMANAS ----------
+  // ===== Semanas =====
   function renderWeeks(){
-    var db=ensureDB(); setWeekTag();
-    var v=$('#views'); v.innerHTML='';
-    if(!db.weeks || db.weeks.length===0){
-      var empty=document.createElement('div'); empty.className='card muted'; empty.textContent='No hay semanas registradas.'; v.appendChild(empty); return;
-    }
-    var weeks = db.weeks.slice().sort(function(a,b){return new Date(b.startISO)-new Date(a.startISO);});
-    var card=document.createElement('div'); card.className='card';
-    var html = '<div style="font-weight:800;margin-bottom:8px">Resumen por semana</div>\
-    <table><thead><tr><th>Semana</th><th class="right">Compra proveedor</th><th class="right">Ventas (registradas)</th><th class="right">Diferencia</th></tr></thead><tbody>';
-    weeks.forEach(function(w){
-      // asegurar stock consistente para cada semana
-      recomputeWeekStock(db, w);
-      var compras = PRODUCTS.reduce(function(acc,p){ return q2(acc + q2(w.costs[p]||0)*q2(w.initial[p]||0)); }, 0);
-      var ventas = salesInWeek(db,w).reduce(function(a,s){return q2(a + q2(s.total));},0);
-      var dif = q2(ventas - compras);
-      var end = addDays(new Date(w.startISO),6);
-      html += '<tr><td>'+isoDate(w.startISO)+' a '+isoDate(end)+'</td>\
-        <td class="right">$'+fmt(compras)+'</td>\
-        <td class="right">$'+fmt(ventas)+'</td>\
-        <td class="right '+(dif>=0?'ok':'danger-t')+'">$'+fmt(dif)+'</td></tr>';
+    const db=ensureDB(); setWeekTag();
+    const v=$('#views'); v.innerHTML='';
+    const weeks=db.weeks.slice().sort((a,b)=> new Date(b.startISO)-new Date(a.startISO));
+    const card=document.createElement('div'); card.className='card';
+    let html=`<div style="font-weight:800;margin-bottom:8px">Resumen por semana</div>
+      <table><thead><tr><th>Semana</th><th class="right">Compra proveedor</th><th class="right">Ventas (registradas)</th><th class="right">Diferencia</th></tr></thead><tbody>`;
+    weeks.forEach(w=>{
+      recomputeWeekStock(db,w);
+      const compras=PRODUCTS.reduce((acc,p)=> q2(acc+q2(w.costs[p]||0)*q2(w.initial[p]||0)),0);
+      const ventas=salesInWeek(db,w).reduce((a,s)=> q2(a+q2(s.total)),0);
+      const dif=q2(ventas-compras);
+      html+=`<tr><td>${iso(w.startISO)} a ${iso(addDays(new Date(w.startISO),6))}</td>
+        <td class="right">$${fmt(compras)}</td><td class="right">$${fmt(ventas)}</td>
+        <td class="right ${dif>=0?'ok':'danger-t'}">$${fmt(dif)}</td></tr>`;
     });
-    html += '</tbody></table>';
-    card.innerHTML = html; v.appendChild(card); save(db);
+    html+='</tbody></table>'; card.innerHTML=html; v.appendChild(card); save(db);
   }
 
-  // ---------- Export / Import ----------
+  // ===== Export/Import & Acciones =====
   function exportCSV(){
-    var db=ensureDB();
-    var rows=[["fecha","comprador","producto","cantidad","precio_unit","total","estado","pagado","entregado"]];
-    db.sales.forEach(function(s){
-      rows.push([ new Date(s.ts).toLocaleString('es-CL'), s.buyer||'', s.product, q2(s.qty).toFixed(2), q2(s.unitPrice), q2(s.total), s.status, q2(s.paid||0), s.delivered? 'sí':'no' ]);
-    });
-    var csv=rows.map(function(r){return r.map(function(x){return '"'+String(x).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
-    var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='ventas.csv'; a.click(); setTimeout(function(){URL.revokeObjectURL(url);},5000);
+    const db=ensureDB(); const rows=[["fecha","comprador","producto","cantidad","precio_unit","total","estado","pagado","entregado"]];
+    db.sales.forEach(s=> rows.push([ new Date(s.ts).toLocaleString('es-CL'), s.buyer||'', s.product, q2(s.qty).toFixed(2), q2(s.unitPrice), q2(s.total), s.status, q2(s.paid||0), s.delivered?'sí':'no' ]));
+    const csv=rows.map(r=> r.map(x=> '"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\n');
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}), url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='ventas.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),3000);
   }
-  function exportJSON(){
-    var db=ensureDB(); var blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='datos_stock_ventas.json'; a.click(); setTimeout(function(){URL.revokeObjectURL(url);},5000);
-  }
-  function importJSON(file){
-    var reader=new FileReader();
-    reader.onload=function(e){
-      try{
-        var data=JSON.parse(e.target.result);
-        if(!data || typeof data!=='object' || !data.weeks || !data.sales){ throw new Error('estructura inválida'); }
-        localStorage.setItem(DBKEY, JSON.stringify(data)); alert('Datos importados correctamente.'); location.reload();
-      }catch(err){ alert('Archivo inválido.'); }
-    };
-    reader.readAsText(file);
-  }
+  function exportJSON(){ const db=ensureDB(); const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='datos_stock_ventas.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),3000); }
+  function importJSON(f){ const r=new FileReader(); r.onload=e=>{ try{ const data=JSON.parse(e.target.result); if(!data||!data.weeks||!data.sales) throw new Error('estructura inválida'); localStorage.setItem(DBKEY, JSON.stringify(data)); alert('Datos importados.'); location.reload(); }catch{ alert('Archivo inválido.'); } }; r.readAsText(f); }
 
-  // ---------- Acciones globales ----------
-  function rollWeek(){
-    var db=ensureDB(); if(!confirm('Crear nueva semana (no borra ventas)?')) return;
-    db.weeks.push(createWeek(db)); save(db); renderTabs('stock'); renderStock(); setWeekTag();
-  }
-  function wipe(){if(confirm('¿Borrar todos los datos? (No se puede deshacer)')){localStorage.removeItem(DBKEY); location.reload();}}
+  function rollWeek(){ const db=ensureDB(); if(!confirm('Crear nueva semana (no borra ventas)?')) return; db.weeks.push(createWeek(db)); save(db); renderTabs('stock'); renderStock(); setWeekTag(); }
+  function wipe(){ if(confirm('¿Borrar todos los datos? (No se puede deshacer)')){ localStorage.removeItem(DBKEY); location.reload(); } }
 
   function init(){
     ensureDB(); setWeekTag(); renderTabs('stock'); renderStock();
-    $('#exportCsv').onclick=exportCSV;
-    $('#exportJson').onclick=exportJSON;
-    $('#importJson').addEventListener('change',function(e){ if(e.target.files&&e.target.files[0]) importJSON(e.target.files[0]); });
-    $('#rollWeek').onclick=rollWeek;
-    $('#wipeAll').onclick=wipe;
+    $('#exportCsv').onclick=exportCSV; $('#exportJson').onclick=exportJSON;
+    $('#importJson').addEventListener('change',e=>{ if(e.target.files&&e.target.files[0]) importJSON(e.target.files[0]); });
+    $('#rollWeek').onclick=rollWeek; $('#wipeAll').onclick=wipe;
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+  // Arranque robusto
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', init); } else { init(); }
 })();
 </script>
-  <script>
-  // Muestra errores en la caja roja si algo rompe antes de dibujar tabs
-  window.addEventListener('error', function(e){
-    var box = document.getElementById('errorBox');
-    if (box) { box.style.display = 'block'; box.textContent = 'Error: ' + e.message; }
-  });
-
-  // Si en 300ms no hay pestañas, recarga sin caché (a veces GitHub Pages sirve versión vieja)
-  setTimeout(function(){
-    var tabs = document.getElementById('tabs');
-    if (!tabs || !tabs.children || tabs.children.length === 0) {
-      if (location.search.indexOf('v=') === -1) {
-        location.search = (location.search ? location.search + '&' : '?') + 'v=' + Date.now();
-      }
-    }
-  }, 300);
-</script>
-
 </body>
 </html>
