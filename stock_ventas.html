@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Stock & Ventas SaboryNatura</title>
+<style>
+  :root{--bg:#0b0f14;--card:#121821;--muted:#94a3b8;--text:#e5e7eb;--accent:#22c55e;--danger:#ef4444;--warn:#f59e0b}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Inter,Arial,sans-serif}
+  .wrap{max-width:960px;margin:0 auto;padding:16px;padding-bottom:120px}
+  .app-title{font-weight:800;font-size:20px;letter-spacing:.2px;display:flex;align-items:center;gap:10px}
+  .tabs{display:flex;gap:8px;overflow:auto;padding-bottom:8px;margin-top:12px}
+  .tab{flex:1;white-space:nowrap;background:#19212e;border:1px solid #1f2937;color:#cbd5e1;padding:12px 10px;border-radius:12px;font-weight:600;text-align:center;cursor:pointer}
+  .tab.active{background:#233043;border-color:#2d3b50;color:#fff}
+  .card{background:var(--card);border:1px solid #1f2937;border-radius:16px;padding:14px;margin-bottom:12px}
+  .grid{display:grid;gap:12px}
+  .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  @media (max-width:640px){.g2{grid-template-columns:1fr}}
+  label{font-size:13px;color:#cbd5e1}
+  input,select{width:100%;padding:12px;border-radius:12px;border:1px solid #2a3649;background:#0f1520;color:#e5e7eb}
+  input[type="number"]{appearance:textfield}
+  button{appearance:none;border:0;border-radius:12px;padding:12px 14px;font-weight:700;cursor:pointer}
+  .btn{background:#2a8346;color:white}
+  .btn.secondary{background:#334155}
+  .btn.warn{background:var(--warn);color:#0b0f14}
+  .btn.danger{background:#ef4444;color:white}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .mini{font-size:12px;color:#9aa9bf}
+  .pill{padding:6px 10px;border-radius:999px;background:#1f2937;color:#cbd5e1;font-size:12px}
+  .pill.green{background:#14532d;color:#86efac}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:10px;border-bottom:1px solid #1f2937;text-align:left;font-size:14px}
+  th{color:#a3b5cc;font-weight:700}
+  .right{text-align:right}
+  .muted{color:#94a3b8}
+  .ok{color:var(--accent)}
+  .warn-t{color:var(--warn)}
+  .danger-t{color:var(--danger)}
+  .footer{position:fixed;bottom:0;left:0;right:0;backdrop-filter:blur(8px);background:rgba(11,15,20,.85);padding:10px 16px;border-top:1px solid #1f2937}
+  .footer .bar{display:flex;gap:8px;flex-wrap:wrap;max-width:960px;margin:0 auto}
+  .help{font-size:12px;color:#9aa9bf;max-width:960px;margin:6px auto 0}
+  .err{background:#3b1f20;border:1px solid #ef4444;color:#fecaca;padding:10px;border-radius:12px;margin:12px 0}
+  .notice{background:#1c2e1c;border:1px solid #22c55e;color:#86efac;padding:10px;border-radius:12px;margin:12px 0;font-size:13px}
+  .carryover-badge{display:inline-flex;align-items:center;gap:4px;background:#1e3a2a;border:1px solid #22c55e44;color:#86efac;padding:3px 8px;border-radius:999px;font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="app-title">🧀🥚 Stock & Ventas <span class="pill" id="weekTag"></span></div>
+  <div class="tabs" id="tabs"></div>
+  <div id="views"></div>
+</div>
+
+<div class="footer">
+  <div class="bar">
+    <button class="btn secondary" id="exportCsv">Exportar CSV</button>
+    <button class="btn secondary" id="exportJson">Exportar JSON</button>
+    <label class="btn secondary" for="importJson" style="cursor:pointer">Importar JSON</label>
+    <input id="importJson" type="file" accept="application/json" style="display:none" />
+    <button class="btn warn" id="rollWeek">Nueva semana</button>
+    <button class="btn danger" id="wipeAll">Borrar todo</button>
+  </div>
+  <div class="help">Los datos se guardan <b>solo</b> en este dispositivo (localStorage). Para verlos en otro equipo, usa <b>Exportar JSON</b> e <b>Importar JSON</b>.</div>
+</div>
+
+<script>
+(function(){
+  // ===== Utilidades =====
+  function uuid(){try{if(crypto&&crypto.randomUUID)return crypto.randomUUID();}catch(e){}return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});}
+  const $=(s,p)=>(p||document).querySelector(s);
+  const fmt=n=>new Intl.NumberFormat('es-CL',{minimumFractionDigits:0}).format(Number(n||0));
+  const q2=n=>Math.round((Number(n||0)+Number.EPSILON)*100)/100;
+  const today=()=>new Date().toISOString();
+  const iso=d=>new Date(d).toISOString().slice(0,10);
+  const startOfWeek=(d)=>{d=d?new Date(d):new Date();const x=new Date(d);const day=(x.getDay()+6)%7;x.setHours(0,0,0,0);x.setDate(x.getDate()-day);return x;};
+  const addDays=(d,dd)=>{const x=new Date(d);x.setDate(x.getDate()+dd);return x;};
+  const PRODUCTS=['mantecoso','chanco','huevos','mantequilla'];
+
+  // ===== Persistencia =====
+  const DBKEY='qy-app-v82'; // versión bumpeada por cambios de estructura
+  const load=()=>{try{return JSON.parse(localStorage.getItem(DBKEY))||{};}catch(e){return{};}};
+  const save=db=>localStorage.setItem(DBKEY,JSON.stringify(db));
+
+  /**
+   * FIX 4: createWeek ahora recibe opcionalmente el stock sobrante de la semana anterior
+   * para arrastrarlo como "initial" de la nueva semana.
+   * También copia los costos del maestro.
+   */
+  function createWeek(db, carryoverStock){
+    const start=startOfWeek();
+    const initial={}, stock={}, costs={};
+    PRODUCTS.forEach(p=>{
+      // FIX 1: si hay sobrante, lo arrastramos como inicial
+      initial[p] = carryoverStock ? q2(carryoverStock[p]||0) : 0;
+      stock[p]   = initial[p]; // stock arranca igual al inicial (aún no hay ventas)
+      costs[p]   = (db&&db.masterCosts&&db.masterCosts[p])||0;
+    });
+    return {id:uuid(), startISO:start.toISOString(), initial, stock, costs, carryover: !!carryoverStock};
+  }
+
+  function ensureDB(){
+    const db=load();
+    if(!db.meta) db.meta={version:8.2, createdAt:today()};
+    if(!db.masterCosts) db.masterCosts={mantecoso:0,chanco:0,huevos:0,mantequilla:0};
+    if(!db.weeks) db.weeks=[];
+    if(!db.sales) db.sales=[];
+    // FIX 4: evitar semanas duplicadas — solo crear si no existe una para esta semana
+    if(!currentWeek(db)){
+      db.weeks.push(createWeek(db));
+      save(db);
+    }
+    return db;
+  }
+
+  // FIX 4: currentWeek busca por startISO de la semana actual sin crear duplicados
+  const currentWeek=db=>(db.weeks||[]).find(w=>iso(w.startISO)===iso(startOfWeek()));
+
+  const salesInWeek=(db,w)=>(db.sales||[]).filter(s=>{
+    const t=new Date(s.ts);
+    const a=new Date(w.startISO), b=addDays(a,7);
+    return t>=a && t<b;
+  });
+
+  function recomputeWeekStock(db,w){
+    const vend=PRODUCTS.reduce((o,p)=>(o[p]=0,o),{});
+    salesInWeek(db,w).forEach(s=>{vend[s.product]=q2(vend[s.product]+q2(s.qty));});
+    PRODUCTS.forEach(p=>{w.stock[p]=q2(Math.max(0,q2(w.initial[p]||0)-(vend[p]||0)));});
+  }
+
+  function setWeekTag(){
+    const db=ensureDB();
+    const wk=currentWeek(db);
+    if(!wk) return;
+    const end=addDays(new Date(wk.startISO),6);
+    const tag=$('#weekTag');
+    if(tag) tag.textContent='Semana '+iso(wk.startISO)+' a '+iso(end);
+  }
+
+  // ===== Tabs / Views =====
+  const tabs=[
+    {id:'stock',  name:'Stock semanal'},
+    {id:'venta',  name:'Registrar venta'},
+    {id:'resumen',name:'Resumen'},
+    {id:'hist',   name:'Historial'},
+    {id:'weeks',  name:'Semanas'}
+  ];
+  function renderTabs(active='stock'){
+    const cont=$('#tabs'); cont.innerHTML='';
+    tabs.forEach(t=>{
+      const b=document.createElement('button');
+      b.className='tab'+(t.id===active?' active':'');
+      b.textContent=t.name;
+      b.onclick=()=>{renderTabs(t.id);renderView(t.id);};
+      cont.appendChild(b);
+    });
+  }
+  function renderView(id){
+    if(id==='stock')   return renderStock();
+    if(id==='venta')   return renderVenta();
+    if(id==='resumen') return renderResumen();
+    if(id==='hist')    return renderHist();
+    if(id==='weeks')   return renderWeeks();
+  }
+
+  // ===== Stock (corrección de inicial) =====
+  function renderStock(){
+    const db=ensureDB(); const wk=currentWeek(db); setWeekTag();
+    const v=$('#views'); v.innerHTML='';
+
+    // Mostrar aviso si el stock fue arrastrado automáticamente
+    if(wk.carryover){
+      const notice=document.createElement('div');
+      notice.className='notice';
+      notice.innerHTML=`✅ <b>Stock arrastrado automáticamente</b> desde la semana anterior. Revisa y ajusta si es necesario, luego guarda.`;
+      v.appendChild(notice);
+    }
+
+    const card=document.createElement('div'); card.className='card grid';
+    card.innerHTML=`
+      <div class="row" style="justify-content:space-between">
+        <div style="font-weight:800">Carga/Corrección de stock (semana actual)</div>
+        <div class="mini">Al guardar, el stock = inicial − vendidos de esta semana.</div>
+      </div>
+      <div class="grid g2" id="stockForm"></div>
+      <div class="row">
+        <button class="btn" id="saveWeek">Guardar stock/costos (recalcular)</button>
+        <button class="btn secondary" id="saveDefaults">Guardar costos por defecto</button>
+      </div>`;
+    v.appendChild(card);
+
+    const form=$('#stockForm');
+    PRODUCTS.forEach(p=>{
+      const blk=document.createElement('div'); blk.className='grid';
+      // Mostrar badge si el valor fue arrastrado
+      const carryBadge = wk.carryover
+        ? `<span class="carryover-badge">↩ arrastrado</span>`
+        : '';
+      blk.innerHTML=`
+        <label>${p.toUpperCase()} – inicial (decimales OK) ${carryBadge}</label>
+        <input type="number" min="0" step="0.01" id="stk_${p}" value="${wk.initial[p]||0}">
+        <label>${p.toUpperCase()} – costo proveedor (unit.)</label>
+        <input type="number" min="0" step="0.01" id="cost_${p}" value="${wk.costs[p]||0}">
+        <div class="mini">Stock actual: ${q2(wk.stock[p]||0).toFixed(2)} · Costo por defecto: $${fmt(db.masterCosts[p]||0)}</div>`;
+      form.appendChild(blk);
+    });
+
+    $('#saveWeek').onclick=()=>{
+      const db2=ensureDB(); const cur=currentWeek(db2);
+      PRODUCTS.forEach(p=>{
+        cur.initial[p]=q2($('#stk_'+p).value||0);
+        cur.costs[p]=q2($('#cost_'+p).value||0);
+      });
+      cur.carryover=false; // ya fue revisado manualmente
+      recomputeWeekStock(db2,cur);
+      save(db2);
+      alert('Inicial/costos actualizados y stock recalculado.');
+      renderTabs('resumen'); renderResumen();
+    };
+
+    $('#saveDefaults').onclick=()=>{
+      const db2=ensureDB(); const cur=currentWeek(db2);
+      PRODUCTS.forEach(p=>db2.masterCosts[p]=q2(cur.costs[p]||0));
+      save(db2); alert('Costos por defecto actualizados.');
+    };
+  }
+
+  // ===== Registrar venta =====
+  function renderVenta(){
+    ensureDB(); setWeekTag();
+    const v=$('#views'); v.innerHTML='';
+    const card=document.createElement('div'); card.className='card grid';
+    card.innerHTML=`
+      <div style="font-weight:800">Nueva venta</div>
+      <div class="grid g2">
+        <div><label>Comprador</label><input id="buyer" placeholder="Nombre o negocio"></div>
+        <div><label>Producto</label><select id="product">${PRODUCTS.map(p=>`<option>${p}</option>`).join('')}</select></div>
+        <div><label>Cantidad</label><input type="number" id="qty" min="0.01" step="0.01" value="0.50"></div>
+        <div><label>Total venta</label><input type="number" id="total" min="0" step="0.01" value="0"></div>
+        <div><label>Estado de pago</label><select id="status"><option>pagado</option><option>pendiente</option><option>parcial</option></select></div>
+        <div><label>Monto pagado (si es parcial)</label><input type="number" id="paid" min="0" step="0.01" value="0"></div>
+        <div><label>Entregado</label><select id="delivered"><option value="true" selected>Sí</option><option value="false">No</option></select></div>
+      </div>
+      <div class="row mini" id="calc"></div>
+      <div id="stockInfo" class="mini" style="margin-top:4px"></div>
+      <div class="row"><button class="btn" id="saveSale">Guardar venta</button></div>`;
+    v.appendChild(card);
+
+    function calc(){
+      const db=ensureDB(); const wk=currentWeek(db);
+      const q=q2($('#qty').value||0), t=q2($('#total').value||0), u=q>0?q2(t/q):0;
+      const prod=$('#product').value;
+      const stockDisp=q2(wk.stock[prod]||0);
+      $('#calc').textContent='Precio unitario: $'+fmt(u)+' · Total: $'+fmt(t);
+      const si=$('#stockInfo');
+      if(si){
+        si.innerHTML=`Stock disponible de <b>${prod}</b>: <span class="${stockDisp>0?'ok':'danger-t'}">${stockDisp.toFixed(2)}</span>`;
+      }
+    }
+    calc();
+    $('#qty').addEventListener('input',calc);
+    $('#total').addEventListener('input',calc);
+    $('#product').addEventListener('change',calc);
+
+    $('#saveSale').onclick=()=>{
+      const buyer=($('#buyer').value||'').trim();
+      const product=$('#product').value;
+      let qty=q2($('#qty').value||0.01); if(qty<0.01) qty=0.01;
+      const total=q2($('#total').value||0);
+      const unit=qty>0?q2(total/qty):0;
+      const status=$('#status').value;
+      let paid=q2($('#paid').value||0);
+      const delivered=($('#delivered').value==='true');
+
+      const db=ensureDB(); const wk=currentWeek(db);
+      if(q2(wk.stock[product]||0)<qty){
+        if(!confirm('No alcanza el stock de '+product+'. Stock actual: '+q2(wk.stock[product]||0).toFixed(2)+'. ¿Registrar igual?')) return;
+      }
+      const paidFinal=(status==='pagado')?total:(status==='parcial'?Math.min(paid,total):0);
+      db.sales.unshift({id:uuid(),ts:today(),buyer,product,qty,unitPrice:unit,total,status,paid:q2(paidFinal),delivered});
+      recomputeWeekStock(db,wk); save(db); alert('Venta guardada.');
+      renderTabs('resumen'); renderResumen();
+    };
+  }
+
+  // ===== Resumen (FIX 3: solo semana activa, no 14 días mezclados) =====
+  function renderResumen(){
+    const db=ensureDB(); const wk=currentWeek(db); setWeekTag();
+    recomputeWeekStock(db,wk); save(db);
+    const v=$('#views'); v.innerHTML='';
+
+    // FIX 3: filtrar solo ventas de la semana activa
+    const ventasSemana=salesInWeek(db,wk);
+
+    const totals=ventasSemana.reduce((a,s)=>(a.ventas+=s.total, a.cobrado+=(s.paid||0), a),{ventas:0,cobrado:0});
+    totals.ventas=q2(totals.ventas);
+    totals.cobrado=q2(totals.cobrado);
+    totals.porcobrar=q2(Math.max(0,totals.ventas-totals.cobrado));
+
+    const pagarProv=PRODUCTS.reduce((acc,p)=>q2(acc+q2(wk.costs[p]||0)*q2(wk.initial[p]||0)),0);
+    const utilCaja=q2(totals.cobrado-pagarProv);
+
+    const end=addDays(new Date(wk.startISO),6);
+    const top=document.createElement('div'); top.className='card';
+    top.innerHTML=`
+      <div class="mini" style="margin-bottom:8px">📅 Semana ${iso(wk.startISO)} → ${iso(end)}</div>
+      <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div><div class="mini">Ventas semana</div><div style="font-size:22px;font-weight:800">$${fmt(totals.ventas)}</div></div>
+        <div><div class="mini">Cobrado</div><div style="font-size:22px;font-weight:800" class="ok">$${fmt(totals.cobrado)}</div></div>
+        <div><div class="mini">Por cobrar</div><div style="font-size:22px;font-weight:800" class="warn-t">$${fmt(totals.porcobrar)}</div></div>
+        <div><div class="mini">A pagar proveedor</div><div style="font-size:22px;font-weight:800">$${fmt(pagarProv)}</div></div>
+        <div><div class="mini">Utilidad bruta (caja)</div><div style="font-size:22px;font-weight:800" class="${utilCaja>=0?'ok':'danger-t'}">$${fmt(utilCaja)}</div></div>
+      </div>`;
+    v.appendChild(top);
+
+    const detail=PRODUCTS.map(p=>{
+      const ventasP=ventasSemana.filter(s=>s.product===p);
+      const ventas=q2(ventasP.reduce((a,b)=>a+b.total,0));
+      const cobrado=q2(ventasP.reduce((a,b)=>a+(b.paid||0),0));
+      const porcobrar=q2(Math.max(0,ventas-cobrado));
+      const vendidos=q2(Math.max(0,q2(wk.initial[p]||0)-q2(wk.stock[p]||0)));
+      const costoCompra=q2(q2(wk.costs[p]||0)*q2(wk.initial[p]||0));
+      const costoVendidos=q2(q2(wk.costs[p]||0)*vendidos);
+      const margen=q2(cobrado-costoVendidos);
+      return {p,ventas,cobrado,porcobrar,vendidos,stock:q2(wk.stock[p]||0),inicial:q2(wk.initial[p]||0),costoCompra,costoVendidos,margen};
+    });
+
+    const det=document.createElement('div'); det.className='card';
+    det.innerHTML=`
+      <div style="font-weight:800;margin-bottom:8px">Detalle por producto – semana actual</div>
+      <div style="overflow-x:auto">
+      <table><thead><tr>
+        <th>Producto</th><th class="right">Inicial</th><th class="right">Vendidos</th><th class="right">Stock</th>
+        <th class="right">Ventas</th><th class="right">Cobrado</th><th class="right">Por cobrar</th>
+        <th class="right">Costo compra</th><th class="right">Costo vendidos</th><th class="right">Margen</th>
+      </tr></thead><tbody>
+      ${detail.map(d=>`
+        <tr>
+          <td style="text-transform:capitalize">${d.p}</td>
+          <td class="right">${d.inicial.toFixed(2)}</td>
+          <td class="right">${d.vendidos.toFixed(2)}</td>
+          <td class="right ${d.stock<=0?'danger-t':d.stock<1?'warn-t':'ok'}">${d.stock.toFixed(2)}</td>
+          <td class="right">$${fmt(d.ventas)}</td>
+          <td class="right">$${fmt(d.cobrado)}</td>
+          <td class="right ${d.porcobrar>0?'warn-t':''}">$${fmt(d.porcobrar)}</td>
+          <td class="right">$${fmt(d.costoCompra)}</td>
+          <td class="right">$${fmt(d.costoVendidos)}</td>
+          <td class="right ${d.margen>=0?'ok':'danger-t'}">$${fmt(d.margen)}</td>
+        </tr>`).join('')}
+      </tbody></table>
+      </div>`;
+    v.appendChild(det);
+  }
+
+  // ===== Historial (FIX 2: validar stock al editar) =====
+  function renderHist(){
+    const db=ensureDB(); setWeekTag();
+    const v=$('#views'); v.innerHTML='';
+
+    // Selector de semana para historial
+    const semanas=db.weeks.slice().sort((a,b)=>new Date(b.startISO)-new Date(a.startISO));
+    let semanaSelId = currentWeek(db) ? currentWeek(db).id : (semanas[0]?.id||null);
+
+    const tools=document.createElement('div'); tools.className='card';
+    tools.innerHTML=`
+      <div class="row" style="gap:12px;align-items:flex-end;flex-wrap:wrap">
+        <div><label>Semana</label><select id="fSemana">
+          ${semanas.map(w=>`<option value="${w.id}" ${w.id===semanaSelId?'selected':''}>
+            ${iso(w.startISO)} → ${iso(addDays(new Date(w.startISO),6))}
+          </option>`).join('')}
+        </select></div>
+        <div><label>Producto</label><select id="fProd"><option value="">Todos</option>${PRODUCTS.map(p=>`<option>${p}</option>`).join('')}</select></div>
+        <div><label>Estado</label><select id="fStatus"><option value="">Todos</option><option>pagado</option><option>pendiente</option><option>parcial</option></select></div>
+        <div><label>Entregado</label><select id="fDeliv"><option value="">Todos</option><option value="true">Sí</option><option value="false">No</option></select></div>
+        <button class="btn secondary" id="applyF">Aplicar</button>
+      </div>`;
+    v.appendChild(tools);
+
+    const card=document.createElement('div'); card.className='card';
+    const wrapper=document.createElement('div'); wrapper.style.overflowX='auto';
+    const table=document.createElement('table');
+    table.innerHTML=`<thead><tr>
+      <th>Fecha</th><th>Comprador</th><th>Producto</th><th class="right">Cant.</th><th class="right">Total</th>
+      <th>Estado</th><th>Entregado</th><th class="right">Pagado</th><th></th>
+    </tr></thead><tbody></tbody>`;
+    const tbody=table.querySelector('tbody');
+    wrapper.appendChild(table); card.appendChild(wrapper); v.appendChild(card);
+
+    function getWeekById(id){ return db.weeks.find(w=>w.id===id); }
+
+    function paint(){
+      semanaSelId=$('#fSemana').value;
+      const wSel=getWeekById(semanaSelId);
+      let items = wSel ? salesInWeek(db,wSel) : [];
+      const fp=$('#fProd').value, fs=$('#fStatus').value, fd=$('#fDeliv').value;
+      if(fp) items=items.filter(s=>s.product===fp);
+      if(fs) items=items.filter(s=>s.status===fs);
+      if(fd) items=items.filter(s=>String(!!s.delivered)===fd);
+      tbody.innerHTML=items.length ? items.map(s=>`
+        <tr>
+          <td>${new Date(s.ts).toLocaleString('es-CL',{dateStyle:'short',timeStyle:'short'})}</td>
+          <td>${s.buyer||'-'}</td>
+          <td style="text-transform:capitalize">${s.product}</td>
+          <td class="right">${q2(s.qty).toFixed(2)}</td>
+          <td class="right">$${fmt(q2(s.total))}</td>
+          <td>${s.status}</td>
+          <td><input type="checkbox" data-deliv="${s.id}" ${s.delivered?'checked':''}></td>
+          <td class="right">$${fmt(q2(s.paid||0))}</td>
+          <td class="right" style="white-space:nowrap">
+            <button class="btn secondary" data-edit="${s.id}" style="margin-right:4px">✏️</button>
+            <button class="btn secondary" data-mark="${s.id}" style="margin-right:4px">✔ Pagado</button>
+            <button class="btn danger" data-id="${s.id}">✕</button>
+          </td>
+        </tr>`).join('')
+        : `<tr><td class="muted" colspan="9">No hay ventas en esta semana.</td></tr>`;
+    }
+    paint();
+    $('#applyF').onclick=paint;
+    $('#fSemana').onchange=paint;
+
+    card.addEventListener('change',e=>{
+      const cb=e.target.closest('input[type="checkbox"][data-deliv]'); if(!cb) return;
+      const id=cb.getAttribute('data-deliv');
+      const s=db.sales.find(x=>x.id===id); if(!s) return;
+      s.delivered=cb.checked;
+      const wk=currentWeek(db); if(wk) recomputeWeekStock(db,wk);
+      save(db); paint();
+    });
+
+    card.addEventListener('click',e=>{
+      // Editar
+      let el=e.target.closest('button[data-edit]');
+      if(el){
+        const id=el.getAttribute('data-edit');
+        const s=db.sales.find(x=>x.id===id); if(!s) return;
+
+        const buyer=prompt('Comprador', s.buyer||''); if(buyer===null) return;
+        let product=prompt('Producto ('+PRODUCTS.join('/'+')')+')', s.product); if(product===null) return;
+        product=product.trim().toLowerCase();
+        if(!PRODUCTS.includes(product)){ alert('Producto inválido.'); return; }
+
+        const qty=parseFloat(prompt('Cantidad', String(q2(s.qty)))); if(!(qty>0)){ alert('Cantidad inválida.'); return; }
+        const total=parseFloat(prompt('Total $', String(q2(s.total)))); if(!(total>=0)){ alert('Total inválido.'); return; }
+        let status=prompt('Estado (pagado/pendiente/parcial)', s.status||'pendiente'); if(status===null) return;
+        status=['pagado','pendiente','parcial'].includes(status)?status:'pendiente';
+        let paid=parseFloat(prompt('Pagado $ (si es parcial)', String(q2(s.paid||0)))); if(isNaN(paid)) paid=0;
+        const delivered=String(prompt('Entregado (si/no)', s.delivered?'si':'no')).toLowerCase().trim()==='si';
+
+        // FIX 2: validar stock al editar
+        // Calculamos cuánto stock "libera" el cambio (diferencia de cantidad)
+        const wkSale=db.weeks.find(w=>{
+          const a=new Date(w.startISO), b=addDays(a,7), t=new Date(s.ts);
+          return t>=a && t<b;
+        });
+        if(wkSale){
+          // Stock disponible = stock actual + lo que ocupaba esta venta antes
+          const stockLibre=q2(q2(wkSale.stock[product]||0)+(s.product===product?q2(s.qty):0));
+          if(qty>stockLibre){
+            if(!confirm(`Stock insuficiente para ${product}.\nDisponible (incluyendo lo que libera esta edición): ${stockLibre.toFixed(2)}\nCantidad nueva: ${qty.toFixed(2)}\n¿Registrar igual?`)) return;
+          }
+        }
+
+        s.buyer=buyer; s.product=product; s.qty=q2(qty); s.total=q2(total);
+        s.unitPrice=s.qty>0?q2(s.total/s.qty):0;
+        s.status=status;
+        s.paid=(status==='pagado')?s.total:(status==='parcial'?q2(Math.min(paid,s.total)):0);
+        s.delivered=delivered;
+
+        // Recomputar todas las semanas afectadas
+        db.weeks.forEach(w=>recomputeWeekStock(db,w));
+        save(db); paint(); return;
+      }
+
+      // Marcar pagado
+      el=e.target.closest('button[data-mark]');
+      if(el){
+        const id=el.getAttribute('data-mark');
+        const s=db.sales.find(x=>x.id===id);
+        if(s){ s.status='pagado'; s.paid=q2(s.total); }
+        db.weeks.forEach(w=>recomputeWeekStock(db,w));
+        save(db); paint(); return;
+      }
+
+      // Eliminar
+      el=e.target.closest('button[data-id]');
+      if(el){
+        const id=el.getAttribute('data-id');
+        if(confirm('¿Eliminar esta venta?')){
+          db.sales=db.sales.filter(s=>s.id!==id);
+          db.weeks.forEach(w=>recomputeWeekStock(db,w));
+          save(db); paint();
+        }
+      }
+    });
+  }
+
+  // ===== Semanas =====
+  function renderWeeks(){
+    const db=ensureDB(); setWeekTag();
+    const v=$('#views'); v.innerHTML='';
+    const weeks=db.weeks.slice().sort((a,b)=>new Date(b.startISO)-new Date(a.startISO));
+    const card=document.createElement('div'); card.className='card';
+    let html=`<div style="font-weight:800;margin-bottom:8px">Resumen por semana</div>
+      <div style="overflow-x:auto"><table><thead><tr>
+        <th>Semana</th><th>Arrastre</th>
+        <th class="right">Compra proveedor</th><th class="right">Ventas</th><th class="right">Diferencia</th>
+      </tr></thead><tbody>`;
+    weeks.forEach(w=>{
+      recomputeWeekStock(db,w);
+      const compras=PRODUCTS.reduce((acc,p)=>q2(acc+q2(w.costs[p]||0)*q2(w.initial[p]||0)),0);
+      const ventas=salesInWeek(db,w).reduce((a,s)=>q2(a+q2(s.total)),0);
+      const dif=q2(ventas-compras);
+      html+=`<tr>
+        <td>${iso(w.startISO)} → ${iso(addDays(new Date(w.startISO),6))}</td>
+        <td>${w.carryover?'<span class="carryover-badge">↩ sí</span>':'-'}</td>
+        <td class="right">$${fmt(compras)}</td>
+        <td class="right">$${fmt(ventas)}</td>
+        <td class="right ${dif>=0?'ok':'danger-t'}">$${fmt(dif)}</td>
+      </tr>`;
+    });
+    html+='</tbody></table></div>';
+    card.innerHTML=html; v.appendChild(card); save(db);
+  }
+
+  // ===== Export/Import & Acciones =====
+  function exportCSV(){
+    const db=ensureDB();
+    const rows=[["fecha","comprador","producto","cantidad","precio_unit","total","estado","pagado","entregado"]];
+    db.sales.forEach(s=>rows.push([
+      new Date(s.ts).toLocaleString('es-CL'), s.buyer||'', s.product,
+      q2(s.qty).toFixed(2), q2(s.unitPrice), q2(s.total),
+      s.status, q2(s.paid||0), s.delivered?'sí':'no'
+    ]));
+    const csv=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\n');
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}), url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='ventas.csv'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),3000);
+  }
+
+  function exportJSON(){
+    const db=ensureDB();
+    const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='datos_stock_ventas.json'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),3000);
+  }
+
+  function importJSON(f){
+    const r=new FileReader();
+    r.onload=e=>{
+      try{
+        const data=JSON.parse(e.target.result);
+        if(!data||!data.weeks||!data.sales) throw new Error('estructura inválida');
+        localStorage.setItem(DBKEY, JSON.stringify(data));
+        alert('Datos importados.'); location.reload();
+      }catch{ alert('Archivo inválido.'); }
+    };
+    r.readAsText(f);
+  }
+
+  /**
+   * FIX 1 + FIX 4: rollWeek con arrastre automático de sobrante
+   * y protección contra semanas duplicadas
+   */
+  function rollWeek(){
+    const db=ensureDB();
+
+    // FIX 4: si ya existe semana para esta semana, avisar
+    if(currentWeek(db)){
+      const wk=currentWeek(db);
+      const end=addDays(new Date(wk.startISO),6);
+      alert(`Ya existe una semana activa (${iso(wk.startISO)} → ${iso(end)}).\nNo se creó una nueva.`);
+      return;
+    }
+
+    if(!confirm('¿Crear nueva semana? El stock sobrante de la semana anterior se arrastrará automáticamente como inicial.')) return;
+
+    // Buscar la semana más reciente para obtener el sobrante
+    const semanas=db.weeks.slice().sort((a,b)=>new Date(b.startISO)-new Date(a.startISO));
+    const anterior=semanas[0]||null;
+    let carryover=null;
+
+    if(anterior){
+      recomputeWeekStock(db,anterior);
+      // El sobrante es el stock final de la semana anterior
+      carryover={};
+      PRODUCTS.forEach(p=>{ carryover[p]=q2(anterior.stock[p]||0); });
+      const resumen=PRODUCTS.map(p=>`${p}: ${carryover[p].toFixed(2)}`).join('\n');
+      if(!confirm(`Stock sobrante que se arrastrará:\n${resumen}\n\n¿Confirmar?`)) return;
+    }
+
+    db.weeks.push(createWeek(db, carryover));
+    save(db);
+    renderTabs('stock'); renderStock(); setWeekTag();
+  }
+
+  function wipe(){
+    if(confirm('¿Borrar todos los datos? (No se puede deshacer)')){
+      localStorage.removeItem(DBKEY); location.reload();
+    }
+  }
+
+  function init(){
+    ensureDB(); setWeekTag(); renderTabs('stock'); renderStock();
+    $('#exportCsv').onclick=exportCSV;
+    $('#exportJson').onclick=exportJSON;
+    $('#importJson').addEventListener('change',e=>{
+      if(e.target.files&&e.target.files[0]) importJSON(e.target.files[0]);
+    });
+    $('#rollWeek').onclick=rollWeek;
+    $('#wipeAll').onclick=wipe;
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>
